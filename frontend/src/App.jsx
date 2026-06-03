@@ -2,7 +2,15 @@ import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
+import IconLink from './components/IconLink'
 import './App.css'
+
+const socialLinks = [
+  { href: 'https://github.com/vitejs/vite', icon: '/icons.svg#github-icon', label: 'GitHub' },
+  { href: 'https://chat.vite.dev/', icon: '/icons.svg#discord-icon', label: 'Discord' },
+  { href: 'https://x.com/vite_js', icon: '/icons.svg#x-icon', label: 'X.com' },
+  { href: 'https://bsky.app/profile/vite.dev', icon: '/icons.svg#bluesky-icon', label: 'Bluesky' },
+]
 
 function App() {
   const [count, setCount] = useState(0)
@@ -40,18 +48,8 @@ function App() {
           <h2>Documentation</h2>
           <p>Your questions, answered</p>
           <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
+            <IconLink href="https://vite.dev/" icon={viteLogo} label="Explore Vite" />
+            <IconLink href="https://react.dev/" icon={reactLogo} label="Learn more" />
           </ul>
         </div>
         <div id="social">
@@ -61,54 +59,9 @@ function App() {
           <h2>Connect with us</h2>
           <p>Join the Vite community</p>
           <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
+            {socialLinks.map((link) => (
+              <IconLink key={link.label} {...link} />
+            ))}
           </ul>
         </div>
       </section>

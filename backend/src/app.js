@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const { sendSuccess } = require('./utils/response');
 const app = express();
 
 const authRoutes = require('./routes/auth.routes');
@@ -17,10 +18,7 @@ app.use('/api/tickets', ticketRoutes);
 
 // Health Check
 app.get('/api/health', (req, res) => {
-    res.json({
-        success: true,
-        message: 'SmartQueue API is running'
-    });
+    sendSuccess(res, 200, 'SmartQueue API is running');
 });
 
 module.exports = app;
