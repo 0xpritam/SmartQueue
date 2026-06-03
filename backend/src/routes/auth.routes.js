@@ -1,14 +1,22 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 
-// 1. Add 'login' to the destructured import
 const { register, login } = require('../controllers/auth.controller');
 
-// POST /api/auth/register
-router.post('/register', register);
+// Rate-limit auth endpoints to mitigate brute-force attacks
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // 20 attempts per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many requests, please try again later.',
+  },
+});
 
-// 2. Add the login route definition
-// This maps to: POST /api/auth/login
-router.post('/login', login);
+router.post('/register', authLimiter, register);
+router.post('/login', authLimiter, login);
 
 module.exports = router;
