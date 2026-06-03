@@ -1,6 +1,6 @@
 // 1. Load the environment variables FIRST
 require('dotenv').config();
-console.log("DEBUG -> JWT_SECRET VALUE IS:", process.env.JWT_SECRET);
+
 // 2. NOW load your app, database, and models
 const app = require('./src/app');
 const sequelize = require('./src/config/database');
@@ -21,7 +21,18 @@ async function startServer() {
     });
   } catch (error) {
     console.error('Failed to start server:', error);
+    process.exit(1);
   }
 }
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
 
 startServer();
