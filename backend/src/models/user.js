@@ -21,6 +21,10 @@ module.exports = (sequelize) => {
           notEmpty: {
             msg: 'Name is required',
           },
+          len: {
+            args: [1, 100],
+            msg: 'Name must be between 1 and 100 characters',
+          },
         },
       },
 
