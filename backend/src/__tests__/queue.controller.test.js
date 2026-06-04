@@ -8,10 +8,16 @@ jest.mock('../models', () => {
   const mockDepartment = {
     findByPk: jest.fn(),
   };
-  return { Ticket: mockTicket, Department: mockDepartment };
+  const mockSequelize = {
+    transaction: jest.fn((cb) => {
+      const fakeTransaction = { LOCK: { UPDATE: 'UPDATE' } };
+      return cb(fakeTransaction);
+    }),
+  };
+  return { Ticket: mockTicket, Department: mockDepartment, sequelize: mockSequelize };
 });
 
-const { Ticket, Department } = require('../models');
+const { Ticket, Department, sequelize } = require('../models');
 
 function mockReqRes(params = {}, user = { id: 'user-1', role: 'admin' }) {
   const req = { params, user };
@@ -97,15 +103,13 @@ describe('callNext', () => {
 
   it('returns 404 when no waiting tickets', async () => {
     Department.findByPk.mockResolvedValue({ id: 'dept-1' });
+    // First call: no currently serving ticket; Second call: no waiting ticket
     Ticket.findOne.mockResolvedValue(null);
 
     const { req, res } = mockReqRes({ departmentId: 'dept-1' });
     await callNext(req, res);
 
-    expect(Ticket.findOne).toHaveBeenCalledWith({
-      where: { departmentId: 'dept-1', status: 'waiting' },
-      order: [['createdAt', 'ASC']],
-    });
+    expect(sequelize.transaction).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'No waiting tickets' })
@@ -120,7 +124,10 @@ describe('callNext', () => {
       departmentId: 'dept-1',
       save: jest.fn().mockResolvedValue(true),
     };
-    Ticket.findOne.mockResolvedValue(fakeTicket);
+    // First findOne: no currently serving; Second findOne: next waiting ticket
+    Ticket.findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(fakeTicket);
 
     const { req, res } = mockReqRes({ departmentId: 'dept-1' });
     await callNext(req, res);
@@ -135,6 +142,32 @@ describe('callNext', () => {
         ticket: fakeTicket,
       })
     );
+  });
+
+  it('completes the currently serving ticket before promoting next', async () => {
+    Department.findByPk.mockResolvedValue({ id: 'dept-1' });
+    const currentTicket = {
+      id: 't0',
+      status: 'serving',
+      save: jest.fn().mockResolvedValue(true),
+    };
+    const nextTicket = {
+      id: 't1',
+      status: 'waiting',
+      save: jest.fn().mockResolvedValue(true),
+    };
+    Ticket.findOne
+      .mockResolvedValueOnce(currentTicket)
+      .mockResolvedValueOnce(nextTicket);
+
+    const { req, res } = mockReqRes({ departmentId: 'dept-1' });
+    await callNext(req, res);
+
+    expect(currentTicket.status).toBe('completed');
+    expect(currentTicket.save).toHaveBeenCalled();
+    expect(nextTicket.status).toBe('serving');
+    expect(nextTicket.save).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it('returns 500 on unexpected error', async () => {

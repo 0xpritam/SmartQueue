@@ -1,4 +1,4 @@
-const { Ticket, Department } = require('../models');
+const { Ticket, Department, sequelize } = require('../models');
 
 // ==========================================
 // GET CURRENT SERVING TICKET
@@ -48,9 +48,31 @@ const callNext = async (req, res) => {
       });
     }
 
-    const nextTicket = await Ticket.findOne({
-      where: { departmentId, status: 'waiting' },
-      order: [['createdAt', 'ASC']],
+    const nextTicket = await sequelize.transaction(async (t) => {
+      // Complete the currently serving ticket
+      const currentServing = await Ticket.findOne({
+        where: { departmentId, status: 'serving' },
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+      if (currentServing) {
+        currentServing.status = 'completed';
+        await currentServing.save({ transaction: t });
+      }
+
+      // Promote next waiting ticket with row lock
+      const ticket = await Ticket.findOne({
+        where: { departmentId, status: 'waiting' },
+        order: [['createdAt', 'ASC']],
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+        skipLocked: true,
+      });
+      if (!ticket) return null;
+
+      ticket.status = 'serving';
+      await ticket.save({ transaction: t });
+      return ticket;
     });
 
     if (!nextTicket) {
@@ -59,9 +81,6 @@ const callNext = async (req, res) => {
         message: 'No waiting tickets',
       });
     }
-
-    nextTicket.status = 'serving';
-    await nextTicket.save();
 
     return res.status(200).json({
       success: true,
