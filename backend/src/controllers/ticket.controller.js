@@ -25,7 +25,7 @@ const generateTicket = async (req, res) => {
     }
 
     // Generate unique ticket number
-    const ticketNumber = `TKT-${Date.now()}-${uuidv4().slice(0, 4).toUpperCase()}`;
+    const ticketNumber = `TKT-${Date.now()}-${uuidv4().replace(/-/g, '').toUpperCase()}`;
 
     const ticket = await Ticket.create({
       ticketNumber,
@@ -78,7 +78,9 @@ const getTicketById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const ticket = await Ticket.findByPk(id);
+    const ticket = await Ticket.findOne({
+      where: { id, userId: req.user.id },
+    });
     if (!ticket) {
       return res.status(404).json({
         success: false,

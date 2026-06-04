@@ -4,7 +4,7 @@ jest.mock('../models', () => {
   const mockTicket = {
     create: jest.fn(),
     findAll: jest.fn(),
-    findByPk: jest.fn(),
+    findOne: jest.fn(),
   };
   const mockDepartment = {
     findByPk: jest.fn(),
@@ -152,22 +152,24 @@ describe('getMyTickets', () => {
 describe('getTicketById', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('returns 200 with ticket when found', async () => {
-    const fakeTicket = { id: 'ticket-1', ticketNumber: 'TKT-1', status: 'waiting' };
-    Ticket.findByPk.mockResolvedValue(fakeTicket);
+  it('returns 200 with ticket when found and owned by user', async () => {
+    const fakeTicket = { id: 'ticket-1', ticketNumber: 'TKT-1', status: 'waiting', userId: 'user-1' };
+    Ticket.findOne.mockResolvedValue(fakeTicket);
 
     const { req, res } = mockReqRes({}, { id: 'ticket-1' });
     await getTicketById(req, res);
 
-    expect(Ticket.findByPk).toHaveBeenCalledWith('ticket-1');
+    expect(Ticket.findOne).toHaveBeenCalledWith({
+      where: { id: 'ticket-1', userId: 'user-1' },
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ success: true, ticket: fakeTicket })
     );
   });
 
-  it('returns 404 when ticket not found', async () => {
-    Ticket.findByPk.mockResolvedValue(null);
+  it('returns 404 when ticket not found or not owned by user', async () => {
+    Ticket.findOne.mockResolvedValue(null);
     const { req, res } = mockReqRes({}, { id: 'nonexistent' });
     await getTicketById(req, res);
     expect(res.status).toHaveBeenCalledWith(404);
@@ -177,7 +179,7 @@ describe('getTicketById', () => {
   });
 
   it('returns 500 on unexpected error', async () => {
-    Ticket.findByPk.mockRejectedValue(new Error('DB down'));
+    Ticket.findOne.mockRejectedValue(new Error('DB down'));
     const { req, res } = mockReqRes({}, { id: 'ticket-1' });
     await getTicketById(req, res);
     expect(res.status).toHaveBeenCalledWith(500);
