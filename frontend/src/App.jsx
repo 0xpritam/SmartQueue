@@ -60,7 +60,7 @@ function App() {
           <p>Join the Vite community</p>
           <ul>
             {socialLinks.map((link) => (
-              <IconLink key={link.label} {...link} />
+              <IconLink key={link.href} {...link} />
             ))}
           </ul>
         </div>

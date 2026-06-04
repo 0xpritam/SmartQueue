@@ -2,7 +2,7 @@ function IconLink({ href, icon, label }) {
   const isImage = typeof icon === 'string' && !icon.startsWith('/icons.svg');
   return (
     <li>
-      <a href={href} target="_blank">
+      <a href={href} target="_blank" rel="noopener noreferrer">
         {isImage ? (
           <img className="button-icon" src={icon} alt="" />
         ) : (
