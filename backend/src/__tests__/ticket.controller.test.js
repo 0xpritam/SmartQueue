@@ -168,13 +168,31 @@ describe('getTicketById', () => {
     );
   });
 
-  it('returns 404 when ticket not found or not owned by user', async () => {
+  it('returns 404 when ticket does not exist', async () => {
     Ticket.findOne.mockResolvedValue(null);
     const { req, res } = mockReqRes({}, { id: 'nonexistent' });
     await getTicketById(req, res);
+    expect(Ticket.findOne).toHaveBeenCalledWith({
+      where: { id: 'nonexistent', userId: 'user-1' },
+    });
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Ticket not found' })
+    );
+  });
+
+  it('returns 404 when ticket belongs to another user (ownership enforced)', async () => {
+    // Ticket exists but belongs to user-2; req.user.id is 'other-user'
+    // The scoped query returns null because userId doesn't match
+    Ticket.findOne.mockResolvedValue(null);
+    const { req, res } = mockReqRes({}, { id: 'ticket-owned-by-other' }, { id: 'other-user' });
+    await getTicketById(req, res);
+    expect(Ticket.findOne).toHaveBeenCalledWith({
+      where: { id: 'ticket-owned-by-other', userId: 'other-user' },
+    });
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, message: 'Ticket not found' })
     );
   });
 
