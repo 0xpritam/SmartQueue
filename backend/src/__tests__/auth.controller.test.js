@@ -91,7 +91,7 @@ describe('register', () => {
     await register(req, res);
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: false, message: 'Server error' })
+      expect.objectContaining({ success: false, message: 'An unexpected error occurred during registration' })
     );
   });
 });
