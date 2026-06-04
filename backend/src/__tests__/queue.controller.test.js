@@ -124,10 +124,10 @@ describe('callNext', () => {
       departmentId: 'dept-1',
       save: jest.fn().mockResolvedValue(true),
     };
-    // First findOne: no currently serving; Second findOne: next waiting ticket
+    // First findOne: next waiting ticket; Second findOne: no currently serving
     Ticket.findOne
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(fakeTicket);
+      .mockResolvedValueOnce(fakeTicket)
+      .mockResolvedValueOnce(null);
 
     const { req, res } = mockReqRes({ departmentId: 'dept-1' });
     await callNext(req, res);
@@ -156,9 +156,10 @@ describe('callNext', () => {
       status: 'waiting',
       save: jest.fn().mockResolvedValue(true),
     };
+    // First findOne: next waiting ticket; Second findOne: currently serving
     Ticket.findOne
-      .mockResolvedValueOnce(currentTicket)
-      .mockResolvedValueOnce(nextTicket);
+      .mockResolvedValueOnce(nextTicket)
+      .mockResolvedValueOnce(currentTicket);
 
     const { req, res } = mockReqRes({ departmentId: 'dept-1' });
     await callNext(req, res);

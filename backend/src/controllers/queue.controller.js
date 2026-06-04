@@ -49,7 +49,17 @@ const callNext = async (req, res) => {
     }
 
     const nextTicket = await sequelize.transaction(async (t) => {
-      // Complete the currently serving ticket
+      // Find next waiting ticket first
+      const ticket = await Ticket.findOne({
+        where: { departmentId, status: 'waiting' },
+        order: [['createdAt', 'ASC']],
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+        skipLocked: true,
+      });
+      if (!ticket) return null;
+
+      // Only complete current serving ticket if we have a replacement
       const currentServing = await Ticket.findOne({
         where: { departmentId, status: 'serving' },
         transaction: t,
@@ -59,16 +69,6 @@ const callNext = async (req, res) => {
         currentServing.status = 'completed';
         await currentServing.save({ transaction: t });
       }
-
-      // Promote next waiting ticket with row lock
-      const ticket = await Ticket.findOne({
-        where: { departmentId, status: 'waiting' },
-        order: [['createdAt', 'ASC']],
-        transaction: t,
-        lock: t.LOCK.UPDATE,
-        skipLocked: true,
-      });
-      if (!ticket) return null;
 
       ticket.status = 'serving';
       await ticket.save({ transaction: t });
