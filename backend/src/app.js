@@ -5,6 +5,7 @@ const app = express();
 
 const authRoutes = require('./routes/auth.routes');
 const ticketRoutes = require('./routes/ticket.routes');
+const queueRoutes = require('./routes/queue.routes');
 
 // Global Middleware
 app.use(cors());
@@ -14,6 +15,7 @@ app.use(morgan('dev'));
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
+app.use('/api/queues', queueRoutes);
 
 // Health Check
 app.get('/api/health', (req, res) => {
