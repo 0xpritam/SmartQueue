@@ -26,17 +26,24 @@ module.exports = (sequelize) => {
 
       status: {
         type: DataTypes.ENUM('waiting', 'serving', 'completed', 'cancelled'),
+        allowNull: false,
         defaultValue: 'waiting',
       },
 
       userId: {
         type: DataTypes.UUID,
         allowNull: true,
+        references: { model: 'users', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
       },
 
       departmentId: {
         type: DataTypes.UUID,
         allowNull: true,
+        references: { model: 'departments', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
       },
     },
     {

@@ -10,6 +10,10 @@ describe('Ticket model definition', () => {
     Ticket = defineTicket(sequelize);
   });
 
+  afterAll(async () => {
+    await sequelize.close();
+  });
+
   it('exports a factory function', () => {
     expect(typeof defineTicket).toBe('function');
   });
@@ -71,6 +75,10 @@ describe('Ticket model definition', () => {
       expect(attr.type instanceof DataTypes.ENUM).toBe(true);
     });
 
+    it('does not allow null', () => {
+      expect(Ticket.rawAttributes.status.allowNull).toBe(false);
+    });
+
     it('allows only "waiting", "serving", "completed", and "cancelled"', () => {
       const values = Ticket.rawAttributes.status.type.values;
       expect(values).toEqual(['waiting', 'serving', 'completed', 'cancelled']);
@@ -90,6 +98,11 @@ describe('Ticket model definition', () => {
     it('allows null', () => {
       expect(Ticket.rawAttributes.userId.allowNull).toBe(true);
     });
+
+    it('has a foreign key reference to users table', () => {
+      const attr = Ticket.rawAttributes.userId;
+      expect(attr.references).toEqual({ model: 'users', key: 'id' });
+    });
   });
 
   describe('departmentId field', () => {
@@ -100,6 +113,11 @@ describe('Ticket model definition', () => {
 
     it('allows null', () => {
       expect(Ticket.rawAttributes.departmentId.allowNull).toBe(true);
+    });
+
+    it('has a foreign key reference to departments table', () => {
+      const attr = Ticket.rawAttributes.departmentId;
+      expect(attr.references).toEqual({ model: 'departments', key: 'id' });
     });
   });
 
