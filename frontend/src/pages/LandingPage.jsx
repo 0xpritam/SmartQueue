@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
 
 const LandingPage = () => {
   const [formData, setFormData] = useState({
@@ -17,12 +18,37 @@ const LandingPage = () => {
 
   const handleContactSubmit = (e) => {
     e.preventDefault()
-    // Simulated form submission
     setSubmitted(true)
     setTimeout(() => {
       setFormData({ name: '', email: '', facility: '', message: '' })
       setSubmitted(false)
     }, 3000)
+  }
+
+  // Animation Variants (Subtle, Clean Clinical Easing)
+  const fadeInUp = {
+    hidden: { opacity: 0, y: 12 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] } // standard clinical ease-in-out
+    }
+  }
+
+  const staggerContainer = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08
+      }
+    }
+  }
+
+  const cardHover = {
+    y: -3,
+    borderColor: '#cbd5e1', // slate-300
+    boxShadow: '0 4px 12px -2px rgba(15, 23, 42, 0.04)'
   }
 
   return (
@@ -57,20 +83,27 @@ const LandingPage = () => {
             <Link to="/login" className="btn-secondary hidden sm:inline-flex py-2">
               Staff Portal
             </Link>
-            <Link to="/login" className="btn-primary py-2 px-4.5">
-              Access SmartQueue
-            </Link>
+            <motion.div whileTap={{ scale: 0.98 }}>
+              <Link to="/login" className="btn-primary py-2 px-4.5">
+                Access SmartQueue
+              </Link>
+            </motion.div>
           </div>
         </div>
       </header>
 
-      {/* 2. Hero Section */}
-      <section className="bg-white border-b border-slate-200 py-16 md:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      {/* 2. Hero Section (Soft Healthcare Gradient Background) */}
+      <section className="relative bg-gradient-to-b from-blue-50/40 via-white to-slate-50 border-b border-slate-200 py-20 md:py-28 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
           {/* Left Text */}
-          <div className="lg:col-span-6 space-y-6 text-center lg:text-left">
+          <motion.div 
+            className="lg:col-span-6 space-y-6 text-center lg:text-left"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+          >
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold uppercase tracking-wide">
-              <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse"></span>
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-600"></span>
               Enterprise Hospital Technology
             </div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
@@ -80,12 +113,16 @@ const LandingPage = () => {
               Streamline patient triage, automate clinic assignment, and decrease patient friction. Built for clinical operators, receptionists, and physicians.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
-              <Link to="/login" className="btn-primary w-full sm:w-auto px-8 py-3 text-base">
-                Clinical Sign In
-              </Link>
-              <Link to="/register" className="btn-secondary w-full sm:w-auto px-8 py-3 text-base">
-                Register New Facility
-              </Link>
+              <motion.div whileTap={{ scale: 0.98 }} className="w-full sm:w-auto">
+                <Link to="/login" className="btn-primary w-full sm:w-auto px-8 py-3 text-base">
+                  Clinical Sign In
+                </Link>
+              </motion.div>
+              <motion.div whileTap={{ scale: 0.98 }} className="w-full sm:w-auto">
+                <Link to="/register" className="btn-secondary w-full sm:w-auto px-8 py-3 text-base">
+                  Register New Facility
+                </Link>
+              </motion.div>
             </div>
             <div className="pt-6 border-t border-slate-100 flex flex-wrap gap-x-8 gap-y-3 justify-center lg:justify-start text-xs text-slate-400 font-medium">
               <span className="flex items-center gap-1">
@@ -101,15 +138,20 @@ const LandingPage = () => {
                 ISO 27001 Infrastructure
               </span>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Right Vector Mockup Display */}
-          <div className="lg:col-span-6 bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-md max-w-lg mx-auto w-full">
+          {/* Right Mockup Display (Subtle Entrance) */}
+          <motion.div 
+            className="lg:col-span-6 bg-slate-100 border border-slate-200 rounded-xl p-5 shadow-sm max-w-lg mx-auto w-full"
+            initial={{ opacity: 0, scale: 0.98, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+          >
             <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
               {/* Fake Patient Screen Header */}
               <div className="bg-slate-900 px-4 py-3 flex justify-between items-center text-white">
                 <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                  <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
                   <span className="text-xs font-bold uppercase tracking-wider">Outpatient Status Monitor</span>
                 </div>
                 <span className="text-xs text-slate-400">Cardiology & Medicine</span>
@@ -164,12 +206,19 @@ const LandingPage = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* 3. Features Section */}
-      <section id="features" className="py-20 border-b border-slate-200">
+      {/* 3. Features Section (Smooth Reveal) */}
+      <motion.section 
+        id="features" 
+        className="py-24 border-b border-slate-200"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-120px" }}
+        variants={fadeInUp}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
             <h2 className="text-xs font-bold text-blue-600 uppercase tracking-widest">Platform Core Features</h2>
@@ -181,9 +230,17 @@ const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
+            variants={staggerContainer}
+          >
             {/* Feature 1 */}
-            <div className="card-container flex flex-col justify-between">
+            <motion.div 
+              className="card-container flex flex-col justify-between"
+              variants={fadeInUp}
+              whileHover={cardHover}
+              transition={{ duration: 0.2 }}
+            >
               <div className="space-y-4">
                 <div className="h-10 w-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -195,10 +252,15 @@ const LandingPage = () => {
                   Automatically allocate arrived patients to matching triage departments and assign rooms relative to current physician pacing.
                 </p>
               </div>
-            </div>
+            </motion.div>
 
             {/* Feature 2 */}
-            <div className="card-container flex flex-col justify-between">
+            <motion.div 
+              className="card-container flex flex-col justify-between"
+              variants={fadeInUp}
+              whileHover={cardHover}
+              transition={{ duration: 0.2 }}
+            >
               <div className="space-y-4">
                 <div className="h-10 w-10 bg-teal-50 text-teal-600 rounded-lg flex items-center justify-center">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -210,10 +272,15 @@ const LandingPage = () => {
                   Provide crisp, clear queue calls on television displays in waiting lounges, keeping patients informed without exposing HIPAA-protected names.
                 </p>
               </div>
-            </div>
+            </motion.div>
 
             {/* Feature 3 */}
-            <div className="card-container flex flex-col justify-between">
+            <motion.div 
+              className="card-container flex flex-col justify-between"
+              variants={fadeInUp}
+              whileHover={cardHover}
+              transition={{ duration: 0.2 }}
+            >
               <div className="space-y-4">
                 <div className="h-10 w-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -225,10 +292,15 @@ const LandingPage = () => {
                   Identify bottle-neck clinics, analyze average consultation times, and adjust clinic staffing dynamically during peak patient loads.
                 </p>
               </div>
-            </div>
+            </motion.div>
 
             {/* Feature 4 */}
-            <div className="card-container flex flex-col justify-between">
+            <motion.div 
+              className="card-container flex flex-col justify-between"
+              variants={fadeInUp}
+              whileHover={cardHover}
+              transition={{ duration: 0.2 }}
+            >
               <div className="space-y-4">
                 <div className="h-10 w-10 bg-teal-50 text-teal-600 rounded-lg flex items-center justify-center">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -240,13 +312,20 @@ const LandingPage = () => {
                   Keep clinical data isolated and secure. Access logs are continuously recorded to exceed facility information hygiene standards.
                 </p>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
-      {/* 4. Departments Section */}
-      <section id="departments" className="py-20 bg-white border-b border-slate-200">
+      {/* 4. Departments Section (Subtle Scroll Reveal) */}
+      <motion.section 
+        id="departments" 
+        className="py-24 bg-white border-b border-slate-200"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-120px" }}
+        variants={fadeInUp}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
             <h2 className="text-xs font-bold text-blue-600 uppercase tracking-widest">Departmental Load</h2>
@@ -258,9 +337,17 @@ const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6"
+            variants={staggerContainer}
+          >
             {/* Card 1 */}
-            <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+            <motion.div 
+              className="p-6 bg-slate-50 border border-slate-200 rounded-xl space-y-3"
+              variants={fadeInUp}
+              whileHover={cardHover}
+              transition={{ duration: 0.2 }}
+            >
               <span className="text-xs font-bold uppercase tracking-wider text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded">High Load</span>
               <h4 className="text-base font-bold text-slate-900 pt-1">Cardiology</h4>
               <p className="text-slate-500 text-xs leading-normal">Integrated ECG status routing with prioritize-first patient profiles.</p>
@@ -268,10 +355,15 @@ const LandingPage = () => {
                 <span>Avg. Visit:</span>
                 <span className="text-blue-600">18 min</span>
               </div>
-            </div>
+            </motion.div>
 
             {/* Card 2 */}
-            <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+            <motion.div 
+              className="p-6 bg-slate-50 border border-slate-200 rounded-xl space-y-3"
+              variants={fadeInUp}
+              whileHover={cardHover}
+              transition={{ duration: 0.2 }}
+            >
               <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded">Stable</span>
               <h4 className="text-base font-bold text-slate-900 pt-1">Pediatrics</h4>
               <p className="text-slate-500 text-xs leading-normal">Child-friendly monitor layouts with automated siblings grouping features.</p>
@@ -279,10 +371,15 @@ const LandingPage = () => {
                 <span>Avg. Visit:</span>
                 <span className="text-blue-600">12 min</span>
               </div>
-            </div>
+            </motion.div>
 
             {/* Card 3 */}
-            <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+            <motion.div 
+              className="p-6 bg-slate-50 border border-slate-200 rounded-xl space-y-3"
+              variants={fadeInUp}
+              whileHover={cardHover}
+              transition={{ duration: 0.2 }}
+            >
               <span className="text-xs font-bold uppercase tracking-wider text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded">High Load</span>
               <h4 className="text-base font-bold text-slate-900 pt-1">Radiology</h4>
               <p className="text-slate-500 text-xs leading-normal">Linked MRI/CT scans wait tracking integrated directly with imaging technicians.</p>
@@ -290,10 +387,15 @@ const LandingPage = () => {
                 <span>Avg. Visit:</span>
                 <span className="text-blue-600">22 min</span>
               </div>
-            </div>
+            </motion.div>
 
             {/* Card 4 */}
-            <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+            <motion.div 
+              className="p-6 bg-slate-50 border border-slate-200 rounded-xl space-y-3"
+              variants={fadeInUp}
+              whileHover={cardHover}
+              transition={{ duration: 0.2 }}
+            >
               <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded">Stable</span>
               <h4 className="text-base font-bold text-slate-900 pt-1">Pharmacy</h4>
               <p className="text-slate-500 text-xs leading-normal">Prescription verification workflows with rapid ticket calling for medicine collection.</p>
@@ -301,10 +403,15 @@ const LandingPage = () => {
                 <span>Avg. Visit:</span>
                 <span className="text-blue-600">4 min</span>
               </div>
-            </div>
+            </motion.div>
 
             {/* Card 5 */}
-            <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+            <motion.div 
+              className="p-6 bg-slate-50 border border-slate-200 rounded-xl space-y-3"
+              variants={fadeInUp}
+              whileHover={cardHover}
+              transition={{ duration: 0.2 }}
+            >
               <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded">Optimal</span>
               <h4 className="text-base font-bold text-slate-900 pt-1">General Medicine</h4>
               <p className="text-slate-500 text-xs leading-normal">Optimized patient triage mapping matching doctor specialists with primary diagnoses.</p>
@@ -312,13 +419,20 @@ const LandingPage = () => {
                 <span>Avg. Visit:</span>
                 <span className="text-blue-600">10 min</span>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
       {/* 5. How It Works Section */}
-      <section id="workflow" className="py-20 border-b border-slate-200">
+      <motion.section 
+        id="workflow" 
+        className="py-24 border-b border-slate-200"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-120px" }}
+        variants={fadeInUp}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
             <h2 className="text-xs font-bold text-blue-600 uppercase tracking-widest">Triage Flow</h2>
@@ -333,7 +447,7 @@ const LandingPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {/* Step 1 */}
             <div className="space-y-4 text-center md:text-left">
-              <div className="h-10 w-10 bg-blue-600 text-white rounded-lg flex items-center justify-center font-bold text-lg mx-auto md:mx-0 shadow-sm shadow-blue-500/20">
+              <div className="h-10 w-10 bg-blue-600 text-white rounded-lg flex items-center justify-center font-bold text-lg mx-auto md:mx-0 shadow-sm shadow-blue-500/10">
                 1
               </div>
               <h3 className="text-lg font-bold text-slate-900">Arrive & Register</h3>
@@ -344,7 +458,7 @@ const LandingPage = () => {
 
             {/* Step 2 */}
             <div className="space-y-4 text-center md:text-left">
-              <div className="h-10 w-10 bg-blue-600 text-white rounded-lg flex items-center justify-center font-bold text-lg mx-auto md:mx-0 shadow-sm shadow-blue-500/20">
+              <div className="h-10 w-10 bg-blue-600 text-white rounded-lg flex items-center justify-center font-bold text-lg mx-auto md:mx-0 shadow-sm shadow-blue-500/10">
                 2
               </div>
               <h3 className="text-lg font-bold text-slate-900">Dynamic Queue Allocation</h3>
@@ -355,7 +469,7 @@ const LandingPage = () => {
 
             {/* Step 3 */}
             <div className="space-y-4 text-center md:text-left">
-              <div className="h-10 w-10 bg-blue-600 text-white rounded-lg flex items-center justify-center font-bold text-lg mx-auto md:mx-0 shadow-sm shadow-blue-500/20">
+              <div className="h-10 w-10 bg-blue-600 text-white rounded-lg flex items-center justify-center font-bold text-lg mx-auto md:mx-0 shadow-sm shadow-blue-500/10">
                 3
               </div>
               <h3 className="text-lg font-bold text-slate-900">Direct Physician Call</h3>
@@ -365,10 +479,17 @@ const LandingPage = () => {
             </div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
-      {/* 6. Queue Console Showcase Section */}
-      <section id="showcase" className="py-20 bg-white border-b border-slate-200">
+      {/* 6. Queue Console Showcase Section (Premium Layout Upgrade) */}
+      <motion.section 
+        id="showcase" 
+        className="py-24 bg-gradient-to-b from-white to-slate-50 border-b border-slate-200"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-120px" }}
+        variants={fadeInUp}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
             <h2 className="text-xs font-bold text-blue-600 uppercase tracking-widest">Clinical Dashboard</h2>
@@ -380,86 +501,142 @@ const LandingPage = () => {
             </p>
           </div>
 
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-6 lg:p-8 shadow-sm">
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden text-sm">
-              
-              {/* Fake Dashboard Header */}
-              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="space-y-1">
-                  <h3 className="text-base font-bold text-slate-900">Queue Management Console</h3>
-                  <p className="text-xs text-slate-500">Facility: Peerless Central Ward - Cardiology Division</p>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+            {/* Left Console Preview */}
+            <div className="lg:col-span-8 bg-slate-100 border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm flex flex-col justify-between">
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden text-sm flex-grow">
+                {/* Fake Dashboard Header */}
+                <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="space-y-1">
+                    <h3 className="text-base font-bold text-slate-900">Queue Management Console</h3>
+                    <p className="text-xs text-slate-500">Facility: Peerless Central Ward - Cardiology Division</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-xs text-slate-500 flex items-center gap-1 font-medium bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                      Database Connected
+                    </span>
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-xs text-slate-500 flex items-center gap-1 font-medium bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-                    Database Connected
-                  </span>
-                  <Link to="/login" className="btn-primary py-1.5 text-xs">
-                    Access Portal
-                  </Link>
+
+                {/* Fake Queue Table */}
+                <div className="p-6 overflow-x-auto">
+                  <table className="w-full text-left font-medium border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-400 uppercase tracking-wider text-xs">
+                        <th className="py-3 font-semibold">Triage No.</th>
+                        <th className="py-3 font-semibold">Patient Name</th>
+                        <th className="py-3 font-semibold">Triage Priority</th>
+                        <th className="py-3 font-semibold">Assigned Room</th>
+                        <th className="py-3 font-semibold">Allocated Doctor</th>
+                        <th className="py-3 font-semibold text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
+                      <tr>
+                        <td className="py-4 font-bold text-blue-600">CARD-109</td>
+                        <td className="py-4 font-semibold text-slate-900">Amrita Sen</td>
+                        <td className="py-4">
+                          <span className="px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-100 font-bold text-[10px] uppercase">Emergency</span>
+                        </td>
+                        <td className="py-4 font-semibold text-slate-900">Room 1</td>
+                        <td className="py-4">Dr. Priya Sharma</td>
+                        <td className="py-4 text-right">
+                          <button className="px-2.5 py-1 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-600 rounded border border-blue-100 transition-colors">Route Room</button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-4 font-bold text-blue-600">CARD-110</td>
+                        <td className="py-4 font-semibold text-slate-900">Ramesh Chandra</td>
+                        <td className="py-4">
+                          <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 font-bold text-[10px] uppercase">Urgent</span>
+                        </td>
+                        <td className="py-4 font-semibold text-slate-900">Room 3</td>
+                        <td className="py-4">Dr. A. Chowdhury</td>
+                        <td className="py-4 text-right">
+                          <button className="px-2.5 py-1 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-600 rounded border border-blue-100 transition-colors">Route Room</button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-4 font-bold text-blue-600">CARD-111</td>
+                        <td className="py-4 font-semibold text-slate-900">Shikha Banerjee</td>
+                        <td className="py-4">
+                          <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100 font-bold text-[10px] uppercase">Routine</span>
+                        </td>
+                        <td className="py-4 font-semibold text-slate-900">Room 4</td>
+                        <td className="py-4">Dr. Priya Sharma</td>
+                        <td className="py-4 text-right">
+                          <span className="text-xs text-slate-400 font-medium">Auto Routing…</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
+            </div>
 
-              {/* Fake Queue Table */}
-              <div className="p-6 overflow-x-auto">
-                <table className="w-full text-left font-medium border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-400 uppercase tracking-wider text-xs">
-                      <th className="py-3 font-semibold">Triage No.</th>
-                      <th className="py-3 font-semibold">Patient Name</th>
-                      <th className="py-3 font-semibold">Triage Priority</th>
-                      <th className="py-3 font-semibold">Assigned Room</th>
-                      <th className="py-3 font-semibold">Allocated Doctor</th>
-                      <th className="py-3 font-semibold text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
-                    <tr>
-                      <td className="py-4 font-bold text-blue-600">CARD-109</td>
-                      <td className="py-4 font-semibold text-slate-900">Amrita Sen</td>
-                      <td className="py-4">
-                        <span className="px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-100 font-bold text-[10px] uppercase">Emergency</span>
-                      </td>
-                      <td className="py-4 font-semibold text-slate-900">Room 1</td>
-                      <td className="py-4">Dr. Priya Sharma</td>
-                      <td className="py-4 text-right">
-                        <button className="px-2.5 py-1 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-600 rounded border border-blue-100 transition-colors">Route Room</button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-4 font-bold text-blue-600">CARD-110</td>
-                      <td className="py-4 font-semibold text-slate-900">Ramesh Chandra</td>
-                      <td className="py-4">
-                        <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 font-bold text-[10px] uppercase">Urgent</span>
-                      </td>
-                      <td className="py-4 font-semibold text-slate-900">Room 3</td>
-                      <td className="py-4">Dr. A. Chowdhury</td>
-                      <td className="py-4 text-right">
-                        <button className="px-2.5 py-1 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-600 rounded border border-blue-100 transition-colors">Route Room</button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-4 font-bold text-blue-600">CARD-111</td>
-                      <td className="py-4 font-semibold text-slate-900">Shikha Banerjee</td>
-                      <td className="py-4">
-                        <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100 font-bold text-[10px] uppercase">Routine</span>
-                      </td>
-                      <td className="py-4 font-semibold text-slate-900">Room 4</td>
-                      <td className="py-4">Dr. Priya Sharma</td>
-                      <td className="py-4 text-right">
-                        <span className="text-xs text-slate-400 font-medium">Auto Routing…</span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+            {/* Right Flow Chart / Analytics Mock (Premium Upgrade) */}
+            <div className="lg:col-span-4 bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col justify-between">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Hourly Clinic Pacing</h3>
+                  <p className="text-xs text-slate-500">Wait times representation for cardiologist sessions.</p>
+                </div>
+                {/* SVG clinical line graph mockup */}
+                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                  <div className="h-32 w-full flex items-end justify-between gap-2 pt-4">
+                    <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                      <div className="w-full bg-blue-500/20 hover:bg-blue-500/35 rounded-t h-[40%] transition-colors duration-200"></div>
+                      <span className="text-[9px] text-slate-400 font-bold">09:00</span>
+                    </div>
+                    <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                      <div className="w-full bg-blue-500/20 hover:bg-blue-500/35 rounded-t h-[75%] transition-colors duration-200"></div>
+                      <span className="text-[9px] text-slate-400 font-bold">11:00</span>
+                    </div>
+                    <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                      <div className="w-full bg-blue-600 rounded-t h-[95%] transition-colors duration-200"></div>
+                      <span className="text-[9px] text-slate-400 font-bold">13:00</span>
+                    </div>
+                    <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                      <div className="w-full bg-blue-500/20 hover:bg-blue-500/35 rounded-t h-[30%] transition-colors duration-200"></div>
+                      <span className="text-[9px] text-slate-400 font-bold">15:00</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3 text-xs leading-normal">
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium">Busiest Hour</span>
+                    <span className="text-slate-950 font-bold">12:30 - 13:30</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium">Peak Patients load</span>
+                    <span className="text-slate-950 font-bold">42 Arrivals / hr</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-slate-500 font-medium">Resolution speed</span>
+                    <span className="text-emerald-600 font-bold">98.4% within SLA</span>
+                  </div>
+                </div>
+              </div>
+              <div className="pt-6 border-t border-slate-100">
+                <Link to="/login" className="btn-primary w-full py-2 text-xs">
+                  Access Portal
+                </Link>
               </div>
             </div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* 7. Contact Section */}
-      <section id="contact" className="py-20 border-b border-slate-200">
+      <motion.section 
+        id="contact" 
+        className="py-24 border-b border-slate-200"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-120px" }}
+        variants={fadeInUp}
+      >
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16 space-y-4">
             <h2 className="text-xs font-bold text-blue-600 uppercase tracking-widest">Enterprise Inquiries</h2>
@@ -539,14 +716,16 @@ const LandingPage = () => {
                   />
                 </div>
 
-                <button type="submit" className="btn-primary w-full py-3 text-base">
-                  Submit Formal Request
-                </button>
+                <motion.div whileTap={{ scale: 0.98 }}>
+                  <button type="submit" className="btn-primary w-full py-3 text-base">
+                    Submit Formal Request
+                  </button>
+                </motion.div>
               </form>
             )}
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* 8. Footer Section */}
       <footer className="bg-slate-900 text-slate-400 text-xs py-16 border-t border-slate-800">
