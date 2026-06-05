@@ -9,6 +9,64 @@ const LandingPage = () => {
     message: ''
   })
   const [submitted, setSubmitted] = useState(false)
+  const [currentIndex, setCurrentIndex] = useState(0)
+
+  const specialists = [
+    {
+      name: 'Dr. Amit Sharma',
+      qualifications: 'MBBS, MD, DM (Cardiology)',
+      specialty: 'Cardiology',
+      experience: '18+ Years',
+      image: '/doctor_portrait_male.png'
+    },
+    {
+      name: 'Dr. Priya Sen',
+      qualifications: 'MBBS, MD (Pediatrics)',
+      specialty: 'Pediatrics',
+      experience: '12+ Years',
+      image: '/doctor_portrait_female.png'
+    },
+    {
+      name: 'Dr. Rajesh Gupta',
+      qualifications: 'MBBS, MS, MCh (Orthopedics)',
+      specialty: 'Orthopedics',
+      experience: '15+ Years',
+      image: '/doctor_portrait_male.png'
+    },
+    {
+      name: 'Dr. Sarah Jacob',
+      qualifications: 'MBBS, MD, DM (Neurology)',
+      specialty: 'Neurology',
+      experience: '14+ Years',
+      image: '/doctor_portrait_female.png'
+    },
+    {
+      name: 'Dr. Ananya Roy',
+      qualifications: 'MBBS, MD, DM (Nephrology)',
+      specialty: 'Nephrology',
+      experience: '10+ Years',
+      image: '/doctor_portrait_female.png'
+    },
+    {
+      name: 'Dr. Vikram Malhotra',
+      qualifications: 'MBBS, MD, DM (Gastroenterology)',
+      specialty: 'Gastroenterology',
+      experience: '16+ Years',
+      image: '/doctor_portrait_male.png'
+    }
+  ]
+
+  const handleNext = () => {
+    if (currentIndex < specialists.length - 4) {
+      setCurrentIndex((prev) => prev + 1)
+    }
+  }
+
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1)
+    }
+  }
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -359,6 +417,98 @@ const LandingPage = () => {
               <h4 className="text-base font-bold text-slate-950">OPD Pharmacy</h4>
               <p className="text-slate-500 text-xs leading-relaxed">Fast-moving medicine ticket checkouts linking counters with prescription database verification.</p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 9. Meet Our Medical Specialists Section */}
+      <section className="py-20 bg-slate-50 border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
+            <div className="space-y-3">
+              <h2 className="text-xs font-bold text-blue-700 uppercase tracking-widest">Medical Excellence</h2>
+              <p className="text-3xl font-extrabold text-slate-900 tracking-tight">Meet Our Medical Specialists</p>
+              <p className="text-slate-600 text-sm">Dedicated physicians managing complex patient care and queue pacing across divisions.</p>
+            </div>
+            {/* Carousel Buttons (Visible on desktop) */}
+            <div className="hidden md:flex items-center gap-3">
+              <button 
+                type="button"
+                onClick={handlePrev}
+                disabled={currentIndex === 0}
+                className="h-10 w-10 rounded border border-slate-300 bg-white flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                aria-label="Previous specialists"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button 
+                type="button"
+                onClick={handleNext}
+                disabled={currentIndex >= specialists.length - 4}
+                className="h-10 w-10 rounded border border-slate-300 bg-white flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                aria-label="Next specialists"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Desktop Grid Layout (4 visible) */}
+          <div className="hidden md:grid grid-cols-4 gap-6">
+            {specialists.slice(currentIndex, currentIndex + 4).map((doc, idx) => (
+              <div key={idx} className="bg-white border border-slate-200 rounded p-5 flex flex-col justify-between shadow-sm hover:shadow hover:-translate-y-1 hover:border-slate-300 transition-all duration-200">
+                <div className="space-y-4">
+                  <img 
+                    src={doc.image} 
+                    alt={doc.name} 
+                    className="w-full h-48 object-cover rounded bg-slate-100"
+                  />
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full inline-block uppercase tracking-wider">{doc.specialty}</span>
+                    <h3 className="font-bold text-slate-900 text-base leading-tight">{doc.name}</h3>
+                    <p className="text-xs text-slate-500 font-medium">{doc.qualifications}</p>
+                  </div>
+                </div>
+                <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between text-xs font-semibold text-slate-700">
+                  <span>Experience:</span>
+                  <span className="text-slate-900">{doc.experience}</span>
+                </div>
+                <a href="#contact" className="btn-secondary py-1.5 w-full text-xs font-semibold mt-4 text-center">
+                  Book Appointment
+                </a>
+              </div>
+            ))}
+          </div>
+
+          {/* Mobile / Tablet Scrollable Layout */}
+          <div className="flex md:hidden overflow-x-auto pb-4 gap-6 scrollbar-none snap-x snap-mandatory">
+            {specialists.map((doc, idx) => (
+              <div key={idx} className="min-w-[280px] snap-start bg-white border border-slate-200 rounded p-5 flex flex-col justify-between shadow-sm">
+                <div className="space-y-4">
+                  <img 
+                    src={doc.image} 
+                    alt={doc.name} 
+                    className="w-full h-48 object-cover rounded bg-slate-100"
+                  />
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full inline-block uppercase tracking-wider">{doc.specialty}</span>
+                    <h3 className="font-bold text-slate-900 text-base leading-tight">{doc.name}</h3>
+                    <p className="text-xs text-slate-500 font-medium">{doc.qualifications}</p>
+                  </div>
+                </div>
+                <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between text-xs font-semibold text-slate-700">
+                  <span>Experience:</span>
+                  <span className="text-slate-900">{doc.experience}</span>
+                </div>
+                <a href="#contact" className="btn-secondary py-1.5 w-full text-xs font-semibold mt-4 text-center">
+                  Book Appointment
+                </a>
+              </div>
+            ))}
           </div>
         </div>
       </section>
