@@ -2,83 +2,101 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 const LandingPage = () => {
-  const [formData, setFormData] = useState({
+  // Booking Search Widget State
+  const [searchHospital, setSearchHospital] = useState('')
+  const [searchDept, setSearchDept] = useState('')
+  const [bookingSuccess, setBookingSuccess] = useState(false)
+  const [bookedTicket, setBookedTicket] = useState(null)
+
+  // Live Ticket Tracker State
+  const [trackerInput, setTrackerInput] = useState('')
+  const [trackedTicket, setTrackedTicket] = useState(null)
+  const [trackerError, setTrackerError] = useState(null)
+
+  // Contact Form State
+  const [contactData, setContactData] = useState({
     name: '',
     email: '',
     facility: '',
     message: ''
   })
-  const [submitted, setSubmitted] = useState(false)
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const [contactSubmitted, setContactSubmitted] = useState(false)
 
-  const specialists = [
-    {
-      name: 'Dr. Amit Sharma',
-      qualifications: 'MBBS, MD, DM (Cardiology)',
-      specialty: 'Cardiology',
-      experience: '18+ Years',
-      image: '/doctor_portrait_male.png'
-    },
-    {
-      name: 'Dr. Priya Sen',
-      qualifications: 'MBBS, MD (Pediatrics)',
-      specialty: 'Pediatrics',
-      experience: '12+ Years',
-      image: '/doctor_portrait_female.png'
-    },
-    {
-      name: 'Dr. Rajesh Gupta',
-      qualifications: 'MBBS, MS, MCh (Orthopedics)',
-      specialty: 'Orthopedics',
-      experience: '15+ Years',
-      image: '/doctor_portrait_male.png'
-    },
-    {
-      name: 'Dr. Sarah Jacob',
-      qualifications: 'MBBS, MD, DM (Neurology)',
-      specialty: 'Neurology',
-      experience: '14+ Years',
-      image: '/doctor_portrait_female.png'
-    },
-    {
-      name: 'Dr. Ananya Roy',
-      qualifications: 'MBBS, MD, DM (Nephrology)',
-      specialty: 'Nephrology',
-      experience: '10+ Years',
-      image: '/doctor_portrait_female.png'
-    },
-    {
-      name: 'Dr. Vikram Malhotra',
-      qualifications: 'MBBS, MD, DM (Gastroenterology)',
-      specialty: 'Gastroenterology',
-      experience: '16+ Years',
-      image: '/doctor_portrait_male.png'
-    }
+  // Demo Hospitals & Departments
+  const partnerHospitals = [
+    'Hope Medical Center (Demo)',
+    'Metro General Hospital (Demo)',
+    'Apex Health Clinic (Demo)',
+    'Valley Care Systems (Demo)'
   ]
 
-  const handleNext = () => {
-    if (currentIndex < specialists.length - 4) {
-      setCurrentIndex((prev) => prev + 1)
-    }
+  const departmentsList = [
+    'Cardiology',
+    'Pediatrics',
+    'Orthopedics',
+    'Radiology',
+    'OPD Pharmacy',
+    'General Medicine'
+  ]
+
+  const handleBookingSubmit = (e) => {
+    e.preventDefault()
+    if (!searchHospital || !searchDept) return
+    
+    // Generate a random ticket
+    const prefix = searchDept.substring(0, 3).toUpperCase()
+    const num = Math.floor(Math.random() * 900) + 100
+    const ticketId = `${prefix}-${num}`
+    
+    setBookedTicket({
+      ticketId,
+      hospital: searchHospital,
+      department: searchDept,
+      servingNumber: `${prefix}-${num - 4 > 100 ? num - 4 : 101}`,
+      estWait: '15 mins'
+    })
+    setBookingSuccess(true)
   }
 
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1)
+  const handleTrackerSubmit = (e) => {
+    e.preventDefault()
+    setTrackerError(null)
+    setTrackedTicket(null)
+
+    if (!trackerInput) return
+
+    const cleanInput = trackerInput.trim().toUpperCase()
+    // Simulated ticket database lookup
+    if (cleanInput.startsWith('CAR') || cleanInput.startsWith('PED') || cleanInput.startsWith('ORT') || cleanInput.startsWith('RAD')) {
+      const parts = cleanInput.split('-')
+      const num = parts[1] ? parseInt(parts[1]) : 112
+      setTrackedTicket({
+        ticketId: cleanInput,
+        hospital: 'Hope Medical Center (Demo)',
+        department: cleanInput.startsWith('CAR') ? 'Cardiology' : 'Pediatrics',
+        servingNumber: `${cleanInput.substring(0, 3)}-${num - 3 > 100 ? num - 3 : 102}`,
+        estWait: '10 minutes',
+        status: 'Arrive in 5 minutes'
+      })
+    } else {
+      setTrackerError('Ticket ID not found. Verify formatting (e.g. CARD-109).')
     }
   }
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    setContactData(prev => ({
+      ...prev,
+      [name]: value
+    }))
   }
 
   const handleContactSubmit = (e) => {
     e.preventDefault()
-    setSubmitted(true)
+    setContactSubmitted(true)
     setTimeout(() => {
-      setFormData({ name: '', email: '', facility: '', message: '' })
-      setSubmitted(false)
+      setContactData({ name: '', email: '', facility: '', message: '' })
+      setContactSubmitted(false)
     }, 3000)
   }
 
@@ -96,488 +114,518 @@ const LandingPage = () => {
             </div>
             <div>
               <span className="text-xl font-extrabold tracking-tight text-slate-900 block leading-tight">SmartQueue</span>
-              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">Hospital Systems</span>
+              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">Patient Platform</span>
             </div>
           </div>
 
           {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
             <a href="#" className="hover:text-blue-700 transition-colors">Home</a>
-            <a href="#why-choose-us" className="hover:text-blue-700 transition-colors">Why SmartQueue</a>
-            <a href="#features" className="hover:text-blue-700 transition-colors">Features</a>
-            <a href="#workflow" className="hover:text-blue-700 transition-colors">Workflow</a>
-            <a href="#departments" className="hover:text-blue-700 transition-colors">Departments</a>
-            <a href="#contact" className="hover:text-blue-700 transition-colors">Contact</a>
+            <a href="#why-smartqueue" className="hover:text-blue-700 transition-colors">Why SmartQueue</a>
+            <a href="#workflow" className="hover:text-blue-700 transition-colors">How It Works</a>
+            <a href="#ai-assistant" className="hover:text-blue-700 transition-colors">AI Assistant</a>
+            <a href="#tracker" className="hover:text-blue-700 transition-colors">Track Status</a>
+            <a href="#contact" className="hover:text-blue-700 transition-colors">Hospital Partnerships</a>
           </nav>
 
           {/* Action Button */}
           <div className="flex items-center gap-4">
             <Link to="/login" className="btn-secondary py-1.5 px-4 text-xs font-semibold">
-              Staff Login
+              Staff Portal
             </Link>
           </div>
         </div>
       </header>
 
-      {/* 2. Full-Width Hero Banner */}
-      <section className="relative bg-slate-900 text-white min-h-[500px] md:min-h-[580px] flex items-center">
+      {/* 2. Hero Section: Hospital Discovery & Booking */}
+      <section className="relative bg-slate-900 text-white min-h-[550px] md:min-h-[620px] flex items-center">
         {/* Background Image with Dark Blue Overlay */}
         <div className="absolute inset-0 z-0">
           <img 
             src="/hospital_lobby_reception.png" 
-            alt="Hospital Reception" 
-            className="w-full h-full object-cover opacity-35"
+            alt="Hospital Check-in lobby" 
+            className="w-full h-full object-cover opacity-25"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/90 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/95 to-slate-950/70" />
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-16 md:py-24">
-          <div className="max-w-2xl space-y-6 text-left">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-16 md:py-24 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          {/* Hero Left Text */}
+          <div className="lg:col-span-7 space-y-6 text-left">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-blue-800/80 text-blue-100 text-xs font-semibold uppercase tracking-wide border border-blue-700">
-              Clinical Flow Optimization
+              Online Queue Token System
             </div>
             <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight text-white">
-              Smarter Patient Queue Management
+              Book your hospital queue online and reduce waiting time.
             </h1>
             <p className="text-slate-300 text-lg leading-relaxed">
-              SmartQueue is an enterprise queue logistics engine built for high-capacity hospitals. Reduce lobby crowding, automate patient routing, and improve receptionist workflows.
+              Skip the crowded waiting rooms. Search partner hospitals near you, select clinical departments, secure your digital queue ticket, and monitor your token status live on your phone.
             </p>
-            <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
-              <a href="#contact" className="btn-primary w-full sm:w-auto px-8 py-3 text-base">
-                Book Demo
-              </a>
-              <Link to="/login" className="btn-secondary bg-transparent hover:bg-white/10 text-white border-white/30 w-full sm:w-auto px-8 py-3 text-base">
-                Staff Login
-              </Link>
+            <div className="flex flex-wrap gap-x-8 gap-y-3 text-xs text-slate-400 font-medium pt-2">
+              <span className="flex items-center gap-1">
+                <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                Secure Queue Tracking
+              </span>
+              <span className="flex items-center gap-1">
+                <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                AI Department Guidance
+              </span>
+              <span className="flex items-center gap-1">
+                <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                Verified Hospital Partners
+              </span>
             </div>
+          </div>
+
+          {/* Hero Right: Booking Form Widget */}
+          <div className="lg:col-span-5 bg-white text-slate-900 border border-slate-200 rounded-lg p-6 sm:p-8 shadow-xl w-full max-w-md mx-auto">
+            {bookingSuccess ? (
+              <div className="space-y-6 text-center py-4">
+                <div className="h-12 w-12 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center mx-auto text-emerald-600">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-slate-950">Queue Ticket Secured</h3>
+                  <p className="text-xs text-slate-500">{bookedTicket.hospital} — {bookedTicket.department}</p>
+                </div>
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Your Token Number</div>
+                  <div className="text-3xl font-black text-blue-700 tracking-tight">{bookedTicket.ticketId}</div>
+                  <div className="text-xs text-slate-600 font-medium pt-1">Currently Serving: <span className="font-bold text-slate-900">{bookedTicket.servingNumber}</span></div>
+                </div>
+                <div className="text-xs text-slate-500 font-medium">
+                  Use the live tracker below to follow your status. Arrive at least 5 minutes before your turn.
+                </div>
+                <button 
+                  onClick={() => setBookingSuccess(false)}
+                  className="btn-secondary w-full py-2 text-xs font-semibold"
+                >
+                  Book Another Ticket
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleBookingSubmit} className="space-y-5">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-950 tracking-tight">Book Queue Ticket</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Secure your digital placement at partner clinics.</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="hospital" className="input-label">Select Hospital</label>
+                    <select
+                      id="hospital"
+                      required
+                      value={searchHospital}
+                      onChange={(e) => setSearchHospital(e.target.value)}
+                      className="input-field cursor-pointer bg-white"
+                    >
+                      <option value="">-- Choose Partner Facility --</option>
+                      {partnerHospitals.map((h, i) => (
+                        <option key={i} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="department" className="input-label">Select Department</label>
+                    <select
+                      id="department"
+                      required
+                      value={searchDept}
+                      onChange={(e) => setSearchDept(e.target.value)}
+                      className="input-field cursor-pointer bg-white"
+                    >
+                      <option value="">-- Choose Medical Division --</option>
+                      {departmentsList.map((d, i) => (
+                        <option key={i} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <button type="submit" className="btn-primary w-full py-3 text-sm font-bold">
+                  Generate Queue Ticket
+                </button>
+              </form>
+            )}
           </div>
         </div>
       </section>
 
-      {/* 3. Why SmartQueue (Why Choose Us) */}
-      <section id="why-choose-us" className="py-20 bg-slate-50 border-b border-slate-200">
+      {/* 3. Placeholder Partner Hospitals Bar */}
+      <section className="bg-slate-50 border-b border-slate-200 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-2">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Demo Facility Network (Placeholder Instances Only)</p>
+          <div className="flex flex-wrap justify-center items-center gap-x-8 gap-y-2 text-sm font-bold text-slate-500">
+            <span>Hope Medical Center (Demo)</span>
+            <span className="text-slate-300">•</span>
+            <span>Metro General Hospital (Demo)</span>
+            <span className="text-slate-300">•</span>
+            <span>Apex Health Clinic (Demo)</span>
+            <span className="text-slate-300">•</span>
+            <span>Valley Care Systems (Demo)</span>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Why SmartQueue (Value Proposition) */}
+      <section id="why-smartqueue" className="py-20 bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-            <h2 className="text-xs font-bold text-blue-700 uppercase tracking-widest">Why SmartQueue</h2>
+            <h2 className="text-xs font-bold text-blue-700 uppercase tracking-widest">Why Choose SmartQueue</h2>
             <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              An Institutional Focus on Care Delivery
+              Smarter Wait Times, Better Outpatient Care
             </p>
             <p className="text-slate-600 text-sm">
-              We design our software around traditional medical protocols, ensuring clinical security and auditability.
+              We replace standard physical wait lists with secure, digital token streams that you can monitor from anywhere.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white border border-slate-200 rounded-lg p-8 space-y-4 shadow-sm">
+            <div className="p-8 bg-slate-50 border border-slate-200 rounded-lg space-y-4 shadow-sm hover:shadow-md transition-shadow">
               <div className="h-10 w-10 bg-blue-50 text-blue-700 rounded flex items-center justify-center">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               </div>
-              <h3 className="text-lg font-bold text-slate-950">Patient Care Quality</h3>
+              <h3 className="text-lg font-bold text-slate-950">Zero Waiting Rooms</h3>
               <p className="text-slate-600 text-sm leading-relaxed">
-                Keep patients relaxed with transparent, dynamic wait-time displays in waiting lounges and automated updates sent to family members.
+                Stay at home, relax in a nearby cafe, or run errands. Only arrive at the clinical department when the live ticket counter shows your turn is approaching.
               </p>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-lg p-8 space-y-4 shadow-sm">
+            <div className="p-8 bg-slate-50 border border-slate-200 rounded-lg space-y-4 shadow-sm hover:shadow-md transition-shadow">
               <div className="h-10 w-10 bg-blue-50 text-blue-700 rounded flex items-center justify-center">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
               </div>
-              <h3 className="text-lg font-bold text-slate-950">Resource Optimization</h3>
+              <h3 className="text-lg font-bold text-slate-950">Real-time Progress Tracker</h3>
               <p className="text-slate-600 text-sm leading-relaxed">
-                Intelligently allocate patients to examination rooms and physicians dynamically to avoid clinic congestion during peak operational hours.
+                Follow clinical wait movements instantly on your phone. Our dashboard displays the current ticket number being served and estimated consultation pacing.
               </p>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-lg p-8 space-y-4 shadow-sm">
+            <div className="p-8 bg-slate-50 border border-slate-200 rounded-lg space-y-4 shadow-sm hover:shadow-md transition-shadow">
               <div className="h-10 w-10 bg-blue-50 text-blue-700 rounded flex items-center justify-center">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               </div>
-              <h3 className="text-lg font-bold text-slate-950">HIPAA Compliant Security</h3>
+              <h3 className="text-lg font-bold text-slate-950">Intelligent Department Selection</h3>
               <p className="text-slate-600 text-sm leading-relaxed">
-                Ensure patient privacy and absolute security. Data transmission meets FHIR/HL7 guidelines, isolating clinical logs on secure host servers.
+                Not sure where to book? Our integrated symptom helper guides you to the correct department (such as Pediatrics or Cardiology) without diagnosing symptoms.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 4. Features Section */}
-      <section id="features" className="py-20 bg-white border-b border-slate-200">
+      {/* Platform Performance Statistics */}
+      <section className="py-16 bg-blue-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-            <h2 className="text-xs font-bold text-blue-700 uppercase tracking-widest">Platform Core Features</h2>
-            <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              Hospital-Grade Queue Logistics
-            </p>
-            <p className="text-slate-600 text-sm">
-              A comprehensive system built for hospital administrators, receptionists, and medical practitioners.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="card-container flex flex-col justify-between">
-              <div className="space-y-4">
-                <div className="h-10 w-10 bg-blue-50 text-blue-700 rounded flex items-center justify-center">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-bold text-slate-950">Central Reception Intake</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">
-                  Fast patient registration and triage assessment interface designed for emergency and general OPD desk receptionists.
-                </p>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 text-center">
+            <div className="space-y-2">
+              <div className="text-4xl sm:text-5xl font-black text-blue-100">150,000+</div>
+              <div className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">Tickets Generated</div>
+              <p className="text-slate-300 text-xs leading-normal max-w-xs mx-auto">Outpatients safely routed without sitting in physical lines.</p>
             </div>
-
-            {/* Feature 2 */}
-            <div className="card-container flex flex-col justify-between">
-              <div className="space-y-4">
-                <div className="h-10 w-10 bg-blue-50 text-blue-700 rounded flex items-center justify-center">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-bold text-slate-950">Triage Prioritization</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">
-                  Configure custom priority tags (Emergency, Urgent, Routine) to automatically route critical patients to the front of check-in lists.
-                </p>
-              </div>
+            <div className="space-y-2">
+              <div className="text-4xl sm:text-5xl font-black text-blue-100">50+</div>
+              <div className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">Hospitals Connected</div>
+              <p className="text-slate-300 text-xs leading-normal max-w-xs mx-auto">Mock partner hospitals and clinics within our simulator network.</p>
             </div>
-
-            {/* Feature 3 */}
-            <div className="card-container flex flex-col justify-between">
-              <div className="space-y-4">
-                <div className="h-10 w-10 bg-blue-50 text-blue-700 rounded flex items-center justify-center">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 12l3-3 3 3 4-4M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-bold text-slate-950">Analytics & SLA Reports</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">
-                  Monitor patient dwell times, physician consultation speeds, and general department performance to meet hospital SLA metrics.
-                </p>
-              </div>
+            <div className="space-y-2">
+              <div className="text-4xl sm:text-5xl font-black text-blue-100">45%</div>
+              <div className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">Waiting Time Reduction</div>
+              <p className="text-slate-300 text-xs leading-normal max-w-xs mx-auto">Average decrease in physical outpatient lobby congestion.</p>
+            </div>
+            <div className="space-y-2">
+              <div className="text-4xl sm:text-5xl font-black text-blue-100">98.4%</div>
+              <div className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">Satisfaction Rate</div>
+              <p className="text-slate-300 text-xs leading-normal max-w-xs mx-auto">Verified patient satisfaction score from post-visit surveys.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 5. Alternating Layout Section A: Clinic Technology */}
-      <section className="py-20 bg-slate-50 border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
-          {/* Image Left */}
-          <div className="lg:col-span-6">
-            <img 
-              src="/doctor_reviewing_data.png" 
-              alt="Doctor Reviewing Intake Details" 
-              className="w-full h-auto rounded-lg border border-slate-200 shadow-sm object-cover max-h-[380px]"
-            />
-          </div>
-          {/* Text Right */}
-          <div className="lg:col-span-6 space-y-5">
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight">
-              Clinically Integrated Doctor Terminals
-            </h3>
-            <p className="text-slate-600 text-base leading-relaxed">
-              Our software links receptionist intake desks with physician consulting rooms. Doctors receive real-time, triaged list notifications directly on their secure console, allowing them to mark patient consults and call next appointments instantly.
-            </p>
-            <ul className="space-y-2.5 text-slate-700 text-sm font-medium">
-              <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-blue-700 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                Direct EHR data handshake
-              </li>
-              <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-blue-700 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                Simple, single-click "Call Next Patient" operation
-              </li>
-              <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-blue-700 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                Auditable consultation and session duration logs
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* 6. Alternating Layout Section B: Patient Self Check-in */}
-      <section className="py-20 bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
-          {/* Text Left */}
-          <div className="lg:col-span-6 space-y-5 order-2 lg:order-1">
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight">
-              Self-Service Hospital Check-in Kiosks
-            </h3>
-            <p className="text-slate-600 text-base leading-relaxed">
-              Empower patients to check in themselves upon arrival using clinical barcode scanners or registration terminals. The kiosk auto-syncs with the central server to print queue slips containing secure room assignment numbers.
-            </p>
-            <ul className="space-y-2.5 text-slate-700 text-sm font-medium">
-              <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-blue-700 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                Scan prescription bar-codes for rapid routing
-              </li>
-              <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-blue-700 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                Clear, high-contrast instructions for clinical accessibility
-              </li>
-              <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-blue-700 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                Reduces receptionist check-in bottlenecks by up to 50%
-              </li>
-            </ul>
-          </div>
-          {/* Image Right */}
-          <div className="lg:col-span-6 order-1 lg:order-2">
-            <img 
-              src="/patient_self_checkin.png" 
-              alt="Patient Checking in at self service kiosk" 
-              className="w-full h-auto rounded-lg border border-slate-200 shadow-sm object-cover max-h-[380px]"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* 7. Patient Queue Workflow Process */}
+      {/* 5. How It Works (Workflow Section) */}
       <section id="workflow" className="py-20 bg-slate-50 border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-            <h2 className="text-xs font-bold text-blue-700 uppercase tracking-widest">Process Flow</h2>
+            <h2 className="text-xs font-bold text-blue-700 uppercase tracking-widest">Workflow</h2>
             <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              Patient Queue Workflow
+              Booking Your Queue Token in 4 Steps
             </p>
             <p className="text-slate-600 text-sm">
-              How SmartQueue structures outpatient flow during doctor consultations.
+              Our clinical booking platform simplifies patient check-in procedures.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {/* Step 1 */}
-            <div className="space-y-4 text-left">
+            <div className="space-y-4">
               <div className="text-xs font-bold text-blue-700 uppercase tracking-wider">Step 01</div>
-              <h3 className="text-xl font-bold text-slate-950">Intake & Check-In</h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                Patient checks in at reception or kiosk. Receptionist logs patient ID, selects OPD department, and inputs vital parameters or emergency level.
+              <h3 className="text-lg font-bold text-slate-950">Find Hospital</h3>
+              <p className="text-slate-600 text-xs leading-relaxed">
+                Search our index of verified partner hospitals and clinical centers near your current location.
               </p>
             </div>
 
             {/* Step 2 */}
-            <div className="space-y-4 text-left">
+            <div className="space-y-4">
               <div className="text-xs font-bold text-blue-700 uppercase tracking-wider">Step 02</div>
-              <h3 className="text-xl font-bold text-slate-950">Queue Allocation</h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                SmartQueue algorithm reviews doctor load, typical patient pacing, and allocates patient to wait list, displaying anonymous ticket numbers on TV screens.
+              <h3 className="text-lg font-bold text-slate-950">Choose Department</h3>
+              <p className="text-slate-600 text-xs leading-relaxed">
+                Select the clinical department you need and check live wait statuses to select the best time.
               </p>
             </div>
 
             {/* Step 3 */}
-            <div className="space-y-4 text-left">
+            <div className="space-y-4">
               <div className="text-xs font-bold text-blue-700 uppercase tracking-wider">Step 03</div>
-              <h3 className="text-xl font-bold text-slate-950">Consultation Call</h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                The clinical doctor clicks "Next Patient" on their terminal. Waiting room displays audio-visually trigger to direct the patient to the matching room.
+              <h3 className="text-lg font-bold text-slate-950">Generate Queue Ticket</h3>
+              <p className="text-slate-600 text-xs leading-relaxed">
+                Secure your digital token instantly on your phone. No physical slips or standing in lobby lines.
+              </p>
+            </div>
+
+            {/* Step 4 */}
+            <div className="space-y-4">
+              <div className="text-xs font-bold text-blue-700 uppercase tracking-wider">Step 04</div>
+              <h3 className="text-lg font-bold text-slate-950">Arrive Just-In-Time</h3>
+              <p className="text-slate-600 text-xs leading-relaxed">
+                Monitor live queue pacing from anywhere and walk into the examination room exactly when your token is called.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 8. Department Showcase */}
-      <section id="departments" className="py-20 bg-white border-b border-slate-200">
+      {/* 6. SmartQueue AI Triage Assistant Section (Symptom Department Guidance Focus) */}
+      <section id="ai-assistant" className="py-20 bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+          {/* Text Left */}
+          <div className="lg:col-span-6 space-y-5">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-teal-50 text-teal-800 text-xs font-semibold uppercase tracking-wide border border-teal-100">
+              Department & Queue Assistant
+            </div>
+            <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight">
+              SmartQueue AI Assistant: Your Department & Queue Guide
+            </h3>
+            <p className="text-slate-600 text-base leading-relaxed">
+              Need help finding the right department or checking queue availability? The SmartQueue AI Assistant helps guide you to the correct department (e.g., matching common queries like skin irritation to *Dermatology* or joint pain to *Orthopedics*) and assists with hospital discovery and ticket status checks. **It is not a medical diagnosis tool.**
+            </p>
+            <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800 font-medium">
+              ⚠️ **General Platform Notice**: The AI assistant is configured strictly for clinic routing, hospital discovery, and queue status checks. It does not provide medical diagnoses, clinical opinions, treatments, or prescription recommendations. For any medical emergency or diagnostic needs, please consult a healthcare professional.
+            </div>
+            <ul className="space-y-2.5 text-slate-700 text-sm font-medium">
+              <li className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-blue-700 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                Find correct medical division instantly
+              </li>
+              <li className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-blue-700 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                Track live department wait times
+              </li>
+              <li className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-blue-700 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                Locate nearest placeholder clinic supporting your concerns
+              </li>
+            </ul>
+          </div>
+
+          {/* Chat Mockup Right */}
+          <div className="lg:col-span-6 bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm max-w-md mx-auto w-full">
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden text-xs">
+              {/* Header */}
+              <div className="bg-slate-900 px-4 py-3 text-white flex justify-between items-center">
+                <span className="font-bold uppercase tracking-wider">Queue & Department Guide (Demo)</span>
+                <span className="text-[10px] text-slate-400 font-semibold bg-slate-800 px-2 py-0.5 rounded">Queue Assistant</span>
+              </div>
+              {/* Chat Area */}
+              <div className="p-4 space-y-4">
+                <div className="flex gap-2.5 items-start">
+                  <div className="h-7 w-7 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center shrink-0">AI</div>
+                  <div className="bg-slate-100 text-slate-700 p-3 rounded-r-lg rounded-bl-lg max-w-[85%] leading-relaxed font-medium">
+                    Hello! I can help you find partner hospitals, identify the correct department for booking, and check active wait list statistics. How can I assist you with your queue query today?
+                  </div>
+                </div>
+                <div className="flex gap-2.5 items-start justify-end">
+                  <div className="bg-blue-600 text-white p-3 rounded-l-lg rounded-br-lg max-w-[85%] leading-relaxed font-medium">
+                    I have joint pain and need to check a doctor. Which department should I book a slot in?
+                  </div>
+                  <div className="h-7 w-7 rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center shrink-0">PT</div>
+                </div>
+                <div className="flex gap-2.5 items-start">
+                  <div className="h-7 w-7 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center shrink-0">AI</div>
+                  <div className="bg-slate-100 text-slate-700 p-3 rounded-r-lg rounded-bl-lg max-w-[85%] leading-relaxed font-medium space-y-2">
+                    <p>For joint-related queries, you should book a ticket in the **Orthopedics** department.</p>
+                    <p>I found **Hope Medical Center (Demo)** nearby. There are currently 2 patients in the Orthopedics queue. The estimated wait is 15 minutes. Would you like to generate a queue ticket?</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 7. Live Queue Status Tracker Showcase */}
+      <section id="tracker" className="py-20 bg-slate-50 border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+          {/* Left: Interactive Tracker Form */}
+          <div className="lg:col-span-5 bg-white border border-slate-200 rounded-lg p-6 sm:p-8 shadow-sm max-w-sm mx-auto w-full order-2 lg:order-1">
+            <form onSubmit={handleTrackerSubmit} className="space-y-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-950">Live Token Tracker</h3>
+                <p className="text-xs text-slate-500">Input your Ticket ID to check queue status.</p>
+              </div>
+
+              <div>
+                <label htmlFor="trackerInput" className="input-label">Ticket ID</label>
+                <input
+                  id="trackerInput"
+                  type="text"
+                  required
+                  value={trackerInput}
+                  onChange={(e) => setTrackerInput(e.target.value)}
+                  className="input-field"
+                  placeholder="e.g. CARD-109, PEDI-112"
+                />
+              </div>
+
+              {trackerError && (
+                <div className="text-xs text-red-700 bg-red-50 border border-red-100 p-2.5 rounded font-medium">{trackerError}</div>
+              )}
+
+              <button type="submit" className="btn-primary w-full py-2.5 text-xs font-semibold">
+                Track Ticket Status
+              </button>
+            </form>
+
+            {/* Tracker Result Output */}
+            {trackedTicket && (
+              <div className="mt-5 pt-5 border-t border-slate-100 space-y-3 text-xs leading-normal animate-fadeIn">
+                <div className="flex justify-between items-center py-1.5 border-b border-slate-50">
+                  <span className="text-slate-500 font-medium">Hospital</span>
+                  <span className="text-slate-950 font-bold">{trackedTicket.hospital}</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-slate-50">
+                  <span className="text-slate-500 font-medium">Department</span>
+                  <span className="text-slate-950 font-bold">{trackedTicket.department}</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-slate-50">
+                  <span className="text-slate-500 font-medium">Your Token No.</span>
+                  <span className="text-blue-700 font-black">{trackedTicket.ticketId}</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-slate-50">
+                  <span className="text-slate-500 font-medium">Currently Serving</span>
+                  <span className="text-slate-900 font-bold">{trackedTicket.servingNumber}</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-slate-50">
+                  <span className="text-slate-500 font-medium">Est. Wait Time</span>
+                  <span className="text-slate-900 font-bold">{trackedTicket.estWait}</span>
+                </div>
+                <div className="p-2.5 bg-emerald-50 text-emerald-800 border border-emerald-100 rounded text-center font-bold">
+                  {trackedTicket.status}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Explanatory text + mockup */}
+          <div className="lg:col-span-7 space-y-5 order-1 lg:order-2">
+            <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight">
+              Track Wait Status Live on Your Mobile Device
+            </h3>
+            <p className="text-slate-600 text-base leading-relaxed">
+              Once you book a digital queue token on SmartQueue, you can access your wait progress dashboard in real time. We log doctor check-ins, room transitions, and patient calling sequences automatically to estimate precise arrival times.
+            </p>
+            <div className="p-5 bg-white border border-slate-200 rounded-lg flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-50 text-blue-700 rounded">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Example Live Ticket</div>
+                  <div className="text-sm font-bold text-slate-900">CAR-109 (Cardiology)</div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Est. Wait</div>
+                <div className="text-sm font-bold text-blue-700">12 minutes</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+
+      {/* 9. Departments Showcase */}
+      <section className="py-20 bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-            <h2 className="text-xs font-bold text-blue-700 uppercase tracking-widest">Division Management</h2>
+            <h2 className="text-xs font-bold text-blue-700 uppercase tracking-widest">Clinical Support</h2>
             <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              Clinical Department Integrations
+              Clinical Department Availability
             </p>
             <p className="text-slate-600 text-sm">
-              Custom configurations templates matching special clinic setups.
+              We coordinate queue tickets for all major clinical specialties.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
-              <h4 className="text-base font-bold text-slate-950">Emergency & Triage</h4>
-              <p className="text-slate-500 text-xs leading-relaxed">Prioritizes emergency cases immediately to the top of routing lists for first available physician.</p>
+            <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg space-y-2 hover:border-slate-300 transition-colors">
+              <h4 className="text-base font-bold text-slate-950">Cardiology & Vascular</h4>
+              <p className="text-slate-500 text-xs leading-relaxed">Book outpatient ECG/doctor consult lists. Queue priority configured dynamically.</p>
             </div>
-            <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
-              <h4 className="text-base font-bold text-slate-950">Cardiology & Medicine</h4>
-              <p className="text-slate-500 text-xs leading-relaxed">Includes average check-in buffers for ECG processing before directing to consultation.</p>
+            <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg space-y-2 hover:border-slate-300 transition-colors">
+              <h4 className="text-base font-bold text-slate-950">Pediatric Care</h4>
+              <p className="text-slate-500 text-xs leading-relaxed">Integrated sibling booking features and check-in parameters for infant care rooms.</p>
             </div>
-            <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
-              <h4 className="text-base font-bold text-slate-950">Radiology & Labs</h4>
-              <p className="text-slate-500 text-xs leading-relaxed">Tracks imaging machine pacing and coordinates waiting seats based on machine availability.</p>
+            <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg space-y-2 hover:border-slate-300 transition-colors">
+              <h4 className="text-base font-bold text-slate-950">Radiology Imaging</h4>
+              <p className="text-slate-500 text-xs leading-relaxed">Track scan-room pacing (MRI/CT scans) and arrive when machine is ready.</p>
             </div>
-            <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
-              <h4 className="text-base font-bold text-slate-950">OPD Pharmacy</h4>
-              <p className="text-slate-500 text-xs leading-relaxed">Fast-moving medicine ticket checkouts linking counters with prescription database verification.</p>
+            <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg space-y-2 hover:border-slate-300 transition-colors">
+              <h4 className="text-base font-bold text-slate-950">General OPD</h4>
+              <p className="text-slate-500 text-xs leading-relaxed">Standard consultation queues for primary medical consultations and prescriptions.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 9. Meet Our Medical Specialists Section */}
+      {/* 10. Patient Testimonials */}
       <section className="py-20 bg-slate-50 border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
-            <div className="space-y-3">
-              <h2 className="text-xs font-bold text-blue-700 uppercase tracking-widest">Medical Excellence</h2>
-              <p className="text-3xl font-extrabold text-slate-900 tracking-tight">Meet Our Medical Specialists</p>
-              <p className="text-slate-600 text-sm">Dedicated physicians managing complex patient care and queue pacing across divisions.</p>
-            </div>
-            {/* Carousel Buttons (Visible on desktop) */}
-            <div className="hidden md:flex items-center gap-3">
-              <button 
-                type="button"
-                onClick={handlePrev}
-                disabled={currentIndex === 0}
-                className="h-10 w-10 rounded border border-slate-300 bg-white flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                aria-label="Previous specialists"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button 
-                type="button"
-                onClick={handleNext}
-                disabled={currentIndex >= specialists.length - 4}
-                className="h-10 w-10 rounded border border-slate-300 bg-white flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                aria-label="Next specialists"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-12">
+          <div className="space-y-3">
+            <h2 className="text-xs font-bold text-blue-700 uppercase tracking-widest">Patient Reviews</h2>
+            <p className="text-3xl font-extrabold text-slate-900 tracking-tight">Saving Hours in the Waiting Room</p>
           </div>
 
-          {/* Desktop Grid Layout (4 visible) */}
-          <div className="hidden md:grid grid-cols-4 gap-6">
-            {specialists.slice(currentIndex, currentIndex + 4).map((doc, idx) => (
-              <div key={idx} className="bg-white border border-slate-200 rounded p-5 flex flex-col justify-between shadow-sm hover:shadow hover:-translate-y-1 hover:border-slate-300 transition-all duration-200">
-                <div className="space-y-4">
-                  <img 
-                    src={doc.image} 
-                    alt={doc.name} 
-                    className="w-full h-48 object-cover rounded bg-slate-100"
-                  />
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full inline-block uppercase tracking-wider">{doc.specialty}</span>
-                    <h3 className="font-bold text-slate-900 text-base leading-tight">{doc.name}</h3>
-                    <p className="text-xs text-slate-500 font-medium">{doc.qualifications}</p>
-                  </div>
-                </div>
-                <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between text-xs font-semibold text-slate-700">
-                  <span>Experience:</span>
-                  <span className="text-slate-900">{doc.experience}</span>
-                </div>
-                <a href="#contact" className="btn-secondary py-1.5 w-full text-xs font-semibold mt-4 text-center">
-                  Book Appointment
-                </a>
-              </div>
-            ))}
-          </div>
-
-          {/* Mobile / Tablet Scrollable Layout */}
-          <div className="flex md:hidden overflow-x-auto pb-4 gap-6 scrollbar-none snap-x snap-mandatory">
-            {specialists.map((doc, idx) => (
-              <div key={idx} className="min-w-[280px] snap-start bg-white border border-slate-200 rounded p-5 flex flex-col justify-between shadow-sm">
-                <div className="space-y-4">
-                  <img 
-                    src={doc.image} 
-                    alt={doc.name} 
-                    className="w-full h-48 object-cover rounded bg-slate-100"
-                  />
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full inline-block uppercase tracking-wider">{doc.specialty}</span>
-                    <h3 className="font-bold text-slate-900 text-base leading-tight">{doc.name}</h3>
-                    <p className="text-xs text-slate-500 font-medium">{doc.qualifications}</p>
-                  </div>
-                </div>
-                <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between text-xs font-semibold text-slate-700">
-                  <span>Experience:</span>
-                  <span className="text-slate-900">{doc.experience}</span>
-                </div>
-                <a href="#contact" className="btn-secondary py-1.5 w-full text-xs font-semibold mt-4 text-center">
-                  Book Appointment
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 9. Operational Statistics (Apollo / Peerless Style) */}
-      <section className="py-20 bg-blue-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
-            <div className="space-y-2">
-              <div className="text-4xl sm:text-5xl font-extrabold text-blue-100">45%</div>
-              <div className="text-sm font-semibold text-blue-200 uppercase tracking-wider">Average Wait-Time Reduction</div>
-              <p className="text-slate-300 text-xs leading-normal max-w-xs mx-auto">Verified average patient dwell reduction after clinical site deployment.</p>
-            </div>
-            <div className="space-y-2">
-              <div className="text-4xl sm:text-5xl font-extrabold text-blue-100">10,000+</div>
-              <div className="text-sm font-semibold text-blue-200 uppercase tracking-wider">Patients Routed Daily</div>
-              <p className="text-slate-300 text-xs leading-normal max-w-xs mx-auto">Active check-ins managed smoothly across partner clinical facilities.</p>
-            </div>
-            <div className="space-y-2">
-              <div className="text-4xl sm:text-5xl font-extrabold text-blue-100">99.8%</div>
-              <div className="text-sm font-semibold text-blue-200 uppercase tracking-wider">Routing Accuracy Rate</div>
-              <p className="text-slate-300 text-xs leading-normal max-w-xs mx-auto">Accurate patient file assignments to scheduled clinical doctors.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 10. Clinical Testimonials */}
-      <section className="py-20 bg-white border-b border-slate-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16 space-y-3">
-            <h2 className="text-xs font-bold text-blue-700 uppercase tracking-widest">Institutional Reviews</h2>
-            <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              Trusted by Healthcare Professionals
+          <div className="bg-white border border-slate-200 rounded-lg p-8 text-left space-y-4 shadow-sm max-w-2xl mx-auto">
+            <p className="text-slate-600 text-base leading-relaxed italic">
+              "SmartQueue completely changed my hospital visit. Instead of sitting for 2 hours in a packed lobby, I booked my token from home, followed the wait tracker on my phone, and arrived 5 minutes before my appointment. I was seen immediately."
             </p>
-          </div>
-
-          <div className="space-y-8">
-            <div className="p-8 bg-slate-50 border border-slate-200 rounded-lg space-y-4">
-              <p className="text-slate-600 text-base leading-relaxed italic">
-                "SmartQueue completely changed our OPD floor management. Patient wait-room crowding has declined by 50%, and our doctors can pacing consultations without any receptionist interference."
-              </p>
-              <div className="flex justify-between items-center text-sm">
-                <div>
-                  <h4 className="font-bold text-slate-950">Dr. Ranjan Sengupta</h4>
-                  <p className="text-slate-500 text-xs">Medical Director, Central Cardiology Unit</p>
-                </div>
-                <span className="text-xs font-bold text-blue-700">Fortis Partner Site</span>
-              </div>
+            <div>
+              <h4 className="font-bold text-slate-950 text-sm">Sunita Mukherjee</h4>
+              <p className="text-slate-500 text-xs">Patient at Hope Medical Center (Demo Site)</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 11. Contact / Demo Booking Section */}
-      <section id="contact" className="py-20 bg-slate-50">
+      {/* 11. Hospital Partnerships (Contact Form) */}
+      <section id="contact" className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16 space-y-4">
-            <h2 className="text-xs font-bold text-blue-700 uppercase tracking-widest">Inquiries & Demonstrations</h2>
+            <h2 className="text-xs font-bold text-blue-700 uppercase tracking-widest">Clinic Partnerships</h2>
             <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              Request a Clinical Consultation
+              Integrate SmartQueue in Your Facility
             </p>
             <p className="text-slate-600 text-sm max-w-xl mx-auto">
-              Coordinate with a SmartQueue implementation engineer to evaluate your facility check-in requirements and request pricing models.
+              Are you a hospital director or clinic IT administrator? Partner with SmartQueue to reduce waiting congestion and optimize physician workflows.
             </p>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-lg p-8 sm:p-10 shadow-sm">
-            {submitted ? (
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 sm:p-10 shadow-sm">
+            {contactSubmitted ? (
               <div className="p-8 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-center space-y-3">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-emerald-600 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -589,63 +637,63 @@ const LandingPage = () => {
               <form onSubmit={handleContactSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
-                    <label htmlFor="name" className="input-label"> Clinical Coordinator Name </label>
+                    <label htmlFor="name" className="input-label">Clinical Contact Name</label>
                     <input
                       id="name"
                       name="name"
                       type="text"
                       required
-                      value={formData.name}
+                      value={contactData.name}
                       onChange={handleInputChange}
                       className="input-field"
                       placeholder="Dr. Amit Sen"
                     />
                   </div>
                   <div>
-                    <label htmlFor="email" className="input-label"> Hospital Email Address </label>
+                    <label htmlFor="email" className="input-label">Hospital Email Address</label>
                     <input
                       id="email"
                       name="email"
                       type="email"
                       required
-                      value={formData.email}
+                      value={contactData.email}
                       onChange={handleInputChange}
                       className="input-field"
-                      placeholder="a.sen@peerlesshospital.org"
+                      placeholder="a.sen@hospital-network.org"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label htmlFor="facility" className="input-label"> Hospital / Healthcare Facility Name </label>
+                  <label htmlFor="facility" className="input-label">Hospital / Clinic Facility Name</label>
                   <input
                     id="facility"
                     name="facility"
                     type="text"
                     required
-                    value={formData.facility}
+                    value={contactData.facility}
                     onChange={handleInputChange}
                     className="input-field"
-                    placeholder="Peerless Central Hospital, Kolkata"
+                    placeholder="Grand Central Hospital, OPD Desk"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="message" className="input-label"> Operational Inquiry Message </label>
+                  <label htmlFor="message" className="input-label">Operational Inquiry Message</label>
                   <textarea
                     id="message"
                     name="message"
                     rows={4}
                     required
-                    value={formData.message}
+                    value={contactData.message}
                     onChange={handleInputChange}
                     className="input-field resize-none"
-                    placeholder="Please detail your clinic queue bottlenecks, integration concerns, or database synchronization concerns…"
+                    placeholder="Detail your queue requirements, patient flow volumes, or current check-in issues…"
                   />
                 </div>
 
                 <button type="submit" className="btn-primary w-full py-3 text-base">
-                  Submit Formal Demonstration Request
+                  Request Partnership Callback
                 </button>
               </form>
             )}
@@ -653,7 +701,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* 12. Professional Footer */}
+      {/* 12. Institutional Footer */}
       <footer className="bg-slate-900 text-slate-400 text-xs py-16 border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-12">
           {/* Col 1 */}
@@ -664,7 +712,7 @@ const LandingPage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                 </svg>
               </div>
-              <span className="text-base font-bold tracking-tight">SmartQueue Systems</span>
+              <span className="text-base font-bold tracking-tight">SmartQueue</span>
             </div>
             <p className="leading-relaxed text-[11px] text-slate-500">
               Enterprise clinical patient flow routing and queue status logistics software built for high-capacity medical nodes.
