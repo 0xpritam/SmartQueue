@@ -4,16 +4,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PatientNavbar from '../components/PatientNavbar';
 import PatientFooter from '../components/PatientFooter';
 import { useAuth } from '../context/AuthContext';
-import { getTicket } from '../api/ticket';
+import { getTicket } from '../api/tickets';
 import { 
   getCurrentServing, 
   getWaitingTickets,
   callNextPatient,
   completeCurrentPatient 
-} from '../api/queue';
+} from '../api/queues';
 
 const QueueStatus = () => {
-  const { token } = useAuth();
+  const { token, login } = useAuth();
   const { ticketId } = useParams(); // UUID of the ticket
   
   // State variables
@@ -25,6 +25,7 @@ const QueueStatus = () => {
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
 
   // Retrieve patient metadata stored in localStorage
   const [meta, setMeta] = useState({
@@ -44,11 +45,34 @@ const QueueStatus = () => {
     }
   }, [ticketId]);
 
+  // Silent Guest Authentication: ensures frictionless patient ticket status tracking
+  useEffect(() => {
+    const ensureToken = async () => {
+      if (!token && !guestLoading) {
+        setGuestLoading(true);
+        try {
+          const { register: apiRegister } = await import('../api/auth');
+          const guestEmail = `guest_${Date.now()}_${Math.floor(Math.random() * 1000)}@smartqueue.demo`;
+          const guestPassword = 'smartqueue_guest_pass_123';
+          const guestName = 'Outpatient Guest';
+          
+          await apiRegister(guestName, guestEmail, guestPassword);
+          await login(guestEmail, guestPassword);
+        } catch (err) {
+          console.error('Silent guest auth error in tracking:', err);
+        } finally {
+          setGuestLoading(false);
+        }
+      }
+    };
+
+    ensureToken();
+  }, [token, login, guestLoading]);
+
   // Fetch ticket details and active queue stats from backend APIs
   const fetchQueueData = async (isSilent = false) => {
     if (!token) {
-      setError('You must be logged in to track ticket status.');
-      setLoading(false);
+      // Wait for silent guest session to be established
       return;
     }
     if (!isSilent) setLoading(true);
@@ -71,7 +95,6 @@ const QueueStatus = () => {
             setServingTicket(null);
           }
         } catch (sErr) {
-          // 404 is a normal case when no patient is currently being served
           setServingTicket(null);
         }
 
@@ -117,7 +140,6 @@ const QueueStatus = () => {
       return { position: index + 1, peopleAhead: index };
     }
     
-    // Fallback if not found in waiting tickets (e.g. state is out of sync)
     return { position: 1, peopleAhead: 0 };
   };
 
@@ -128,15 +150,12 @@ const QueueStatus = () => {
     setError(null);
     try {
       if (servingTicket) {
-        // A patient is currently serving. Complete them first.
         await completeCurrentPatient(ticket.departmentId);
       } else if (waitingTickets.length > 0) {
-        // No patient is serving. Call the next one from the waiting list.
         await callNextPatient(ticket.departmentId);
       } else {
         setError('No active patients in queue to advance.');
       }
-      // Instantly refresh
       await fetchQueueData(true);
     } catch (err) {
       console.error('Simulator action error:', err);
@@ -192,11 +211,8 @@ const QueueStatus = () => {
 
   const statusConfig = getStatusConfig();
 
-  // Shorten readable ticket ID for cleaner display (uuid first 8 chars)
   const getReadableTicketId = () => {
     if (!ticket) return '';
-    // Use ticketNumber from backend, e.g. TKT-12837918-UUID...
-    // Strip the timestamp and UUID to show a cleaner code or display it in full
     if (ticket.ticketNumber.startsWith('TKT-')) {
       const parts = ticket.ticketNumber.split('-');
       if (parts.length >= 3) {
@@ -211,7 +227,7 @@ const QueueStatus = () => {
       <PatientNavbar />
 
       <main className="max-w-xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow w-full">
-        {loading ? (
+        {loading || guestLoading ? (
           /* Skeleton Loader */
           <div className="space-y-6 animate-pulse">
             <div className="h-10 bg-slate-200 rounded w-full" />
@@ -223,22 +239,6 @@ const QueueStatus = () => {
                 <div className="h-12 bg-slate-50 rounded" />
                 <div className="h-12 bg-slate-50 rounded" />
               </div>
-            </div>
-          </div>
-        ) : !token ? (
-          /* Authentication Required Error State */
-          <div className="text-center py-12 bg-white rounded-lg border border-slate-200 shadow-sm p-8 space-y-4">
-            <svg className="w-16 h-16 text-slate-300 mx-auto" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            <h2 className="text-lg font-bold text-slate-900">Sign In Required</h2>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
-              Ticket tracking is authenticated. Please log in to view the live progress of your active tickets.
-            </p>
-            <div className="pt-4 flex justify-center gap-4">
-              <Link to="/login" className="btn-primary py-2 px-6 text-xs font-semibold cursor-pointer">
-                Sign In to Account
-              </Link>
             </div>
           </div>
         ) : notFound ? (

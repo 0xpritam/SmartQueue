@@ -5,12 +5,12 @@ import PatientNavbar from '../components/PatientNavbar';
 import PatientFooter from '../components/PatientFooter';
 import { useAuth } from '../context/AuthContext';
 import { getHospitals } from '../api/hospital';
-import { bookTicket } from '../api/ticket';
-import { getWaitingTickets } from '../api/queue';
-import { recommendDepartment } from '../api/mockData'; // Keeps AI Triage client recommendations matching
+import { bookTicket } from '../api/tickets';
+import { getWaitingTickets } from '../api/queues';
+import { recommendDepartment } from '../api/mockData';
 
 const BookTicket = () => {
-  const { token } = useAuth();
+  const { token, login } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -19,8 +19,9 @@ const BookTicket = () => {
   const [hospitalsLoading, setHospitalsLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [guestLoading, setGuestLoading] = useState(false);
 
-  // Selected Hospital & Department State (selectedDepartment holds the DB department UUID)
+  // Selected Hospital & Department State
   const [selectedHospitalId, setSelectedHospitalId] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [availableDepartments, setAvailableDepartments] = useState([]);
@@ -40,6 +41,30 @@ const BookTicket = () => {
   const [symptomInput, setSymptomInput] = useState('');
   const [triageRecommendation, setTriageRecommendation] = useState(null);
   const [isTriageAnalyzing, setIsTriageAnalyzing] = useState(false);
+
+  // Silent Guest Authentication: ensures frictionless patient booking
+  useEffect(() => {
+    const ensureToken = async () => {
+      if (!token && !guestLoading) {
+        setGuestLoading(true);
+        try {
+          const { register: apiRegister } = await import('../api/auth');
+          const guestEmail = `guest_${Date.now()}_${Math.floor(Math.random() * 1000)}@smartqueue.demo`;
+          const guestPassword = 'smartqueue_guest_pass_123';
+          const guestName = 'Outpatient Guest';
+          
+          await apiRegister(guestName, guestEmail, guestPassword);
+          await login(guestEmail, guestPassword);
+        } catch (err) {
+          console.error('Silent guest auth error:', err);
+        } finally {
+          setGuestLoading(false);
+        }
+      }
+    };
+
+    ensureToken();
+  }, [token, login, guestLoading]);
 
   // Load Hospitals List on page mount
   useEffect(() => {
@@ -95,7 +120,6 @@ const BookTicket = () => {
           const res = await getWaitingTickets(selectedDepartment);
           if (res && res.success) {
             const queueLength = res.tickets ? res.tickets.length : 0;
-            // 8 minutes wait per patient ahead in queue
             const estWaitTime = queueLength * 8; 
             setStats({ queueLength, estWaitTime });
           }
@@ -121,7 +145,7 @@ const BookTicket = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!token) {
-      setError('You must be logged in to book a queue ticket.');
+      setError('Establishing connection session. Please try again in a moment...');
       return;
     }
     if (!selectedHospitalId || !selectedDepartment) return;
@@ -173,7 +197,6 @@ const BookTicket = () => {
 
   // Automatically select the recommended department by mapping the name back to its DB UUID
   const applyTriageSelection = (departmentName) => {
-    // Find a hospital and department matching this name
     let foundHospitalId = selectedHospitalId;
     let foundDeptId = '';
 
@@ -184,7 +207,6 @@ const BookTicket = () => {
     }
 
     if (!foundDeptId) {
-      // Look across all hospitals
       for (const h of hospitals) {
         const dept = h.departments.find(d => d.name === departmentName);
         if (dept) {
@@ -209,7 +231,7 @@ const BookTicket = () => {
       <PatientNavbar />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-grow w-full">
-        {hospitalsLoading ? (
+        {hospitalsLoading || guestLoading ? (
           /* Skeleton Loader */
           <div className="space-y-6 animate-pulse">
             <div className="h-6 bg-slate-200 rounded w-1/3" />
@@ -243,19 +265,6 @@ const BookTicket = () => {
               {/* Booking Form Card */}
               <div className="bg-white border border-slate-200 rounded-xl p-6 sm:p-8 shadow-sm">
                 
-                {/* Auth Check Warning Banner */}
-                {!token && (
-                  <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 text-xs text-amber-800 font-semibold animate-fadeIn leading-relaxed">
-                    <svg className="h-5 w-5 shrink-0 text-amber-600" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <div>
-                      <span className="font-bold uppercase tracking-wide block mb-1">Authentication Required</span>
-                      To generate a live ticket, you must be logged in. Please <Link to="/login" className="underline font-bold text-blue-700 hover:text-blue-800">Sign In</Link> or <Link to="/register" className="underline font-bold text-blue-700 hover:text-blue-800">Register</Link> to secure your place.
-                    </div>
-                  </div>
-                )}
-
                 <form onSubmit={handleSubmit} className="space-y-6">
                   
                   {/* Hospital Selection */}
@@ -264,10 +273,9 @@ const BookTicket = () => {
                     <select
                       id="hospitalSelect"
                       required
-                      disabled={!token}
                       value={selectedHospitalId}
                       onChange={(e) => setSelectedHospitalId(e.target.value)}
-                      className="input-field cursor-pointer bg-white disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="input-field cursor-pointer bg-white"
                     >
                       <option value="">-- Choose Partner Facility --</option>
                       {hospitals.map((h) => (
@@ -284,7 +292,7 @@ const BookTicket = () => {
                     <select
                       id="deptSelect"
                       required
-                      disabled={!token || !selectedHospitalId}
+                      disabled={!selectedHospitalId}
                       value={selectedDepartment}
                       onChange={(e) => setSelectedDepartment(e.target.value)}
                       className="input-field cursor-pointer bg-white disabled:opacity-60 disabled:cursor-not-allowed"
@@ -339,11 +347,10 @@ const BookTicket = () => {
                           name="patientName"
                           type="text"
                           required
-                          disabled={!token}
                           value={formDetails.patientName}
                           onChange={handleInputChange}
                           placeholder="John Doe"
-                          className="input-field disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="input-field"
                         />
                       </div>
 
@@ -357,11 +364,10 @@ const BookTicket = () => {
                           min="1"
                           max="125"
                           required
-                          disabled={!token}
                           value={formDetails.patientAge}
                           onChange={handleInputChange}
                           placeholder="e.g. 35"
-                          className="input-field disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="input-field"
                         />
                       </div>
                     </div>
@@ -374,11 +380,10 @@ const BookTicket = () => {
                         name="patientPhone"
                         type="tel"
                         required
-                        disabled={!token}
                         value={formDetails.patientPhone}
                         onChange={handleInputChange}
                         placeholder="+1 (555) 000-1234"
-                        className="input-field disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="input-field"
                       />
                     </div>
 
@@ -389,11 +394,10 @@ const BookTicket = () => {
                         id="reason"
                         name="reason"
                         rows={2}
-                        disabled={!token}
                         value={formDetails.reason}
                         onChange={handleInputChange}
                         placeholder="e.g. Routine checkup, chronic back pain, annual scan..."
-                        className="input-field resize-none disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="input-field resize-none"
                       />
                     </div>
                   </div>
@@ -401,13 +405,13 @@ const BookTicket = () => {
                   {/* Submit Action */}
                   <button
                     type="submit"
-                    disabled={!token || !selectedHospitalId || !selectedDepartment || bookingLoading}
+                    disabled={!selectedHospitalId || !selectedDepartment || bookingLoading}
                     className="btn-primary w-full py-3.5 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {bookingLoading ? (
                       <>
                         <svg className="h-4.5 w-4.5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4}></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
                         </svg>
                         Securing queue place...
@@ -470,7 +474,7 @@ const BookTicket = () => {
                     {isTriageAnalyzing ? (
                       <>
                         <svg className="h-3.5 w-3.5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4}></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
                         </svg>
                         Analyzing symptoms...
