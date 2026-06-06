@@ -73,7 +73,7 @@ const QueueTable = ({ tickets = [], departments = [], onStatusChange, actionLoad
               <th className="py-4 px-6">Clinical Division</th>
               <th className="py-4 px-6">Current Status</th>
               <th className="py-4 px-6">Check-in Time</th>
-              <th className="py-4 px-6 text-right pr-8">Actions</th>
+              <th className="py-4 px-6 text-right pr-8 w-64 min-w-[220px]">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-medium">
@@ -114,14 +114,14 @@ const QueueTable = ({ tickets = [], departments = [], onStatusChange, actionLoad
                   <td className="py-5 px-6 text-slate-700 text-xs font-semibold">{deptName}</td>
                   <td className="py-5 px-6">{getStatusBadge(t.status)}</td>
                   <td className="py-5 px-6 text-slate-500 text-xs">{bookingTimeStr}</td>
-                  <td className="py-5 px-6 text-right pr-8 shrink-0">
-                    <div className="inline-flex gap-2 items-center justify-end">
+                  <td className="py-5 px-6 text-right pr-8 w-64 min-w-[220px] align-middle">
+                    <div className="flex flex-wrap gap-2 items-center justify-end">
                       {/* Action buttons */}
                       {t.status === 'waiting' && (
                         <button
                           onClick={() => onStatusChange(t.id, 'serving', t.ticketNumber, t.departmentId)}
                           disabled={actionLoading}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-blue-50 hover:bg-blue-600 hover:text-white border border-blue-200/80 hover:border-blue-600 text-blue-700 rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-sm"
+                          className="inline-flex items-center justify-center gap-1 px-3 py-1.5 min-w-[95px] text-xs font-bold bg-blue-50 hover:bg-blue-600 hover:text-white border border-blue-200/80 hover:border-blue-600 text-blue-700 rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-sm"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
@@ -133,7 +133,7 @@ const QueueTable = ({ tickets = [], departments = [], onStatusChange, actionLoad
                         <button
                           onClick={() => onStatusChange(t.id, 'completed', t.ticketNumber, t.departmentId)}
                           disabled={actionLoading}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-teal-50 hover:bg-teal-600 hover:text-white border border-teal-200/80 hover:border-teal-600 text-teal-700 rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-sm"
+                          className="inline-flex items-center justify-center gap-1 px-3 py-1.5 min-w-[100px] text-xs font-bold bg-teal-50 hover:bg-teal-600 hover:text-white border border-teal-200/80 hover:border-teal-600 text-teal-700 rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-sm"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -145,7 +145,7 @@ const QueueTable = ({ tickets = [], departments = [], onStatusChange, actionLoad
                         <button
                           onClick={() => onStatusChange(t.id, 'cancelled', t.ticketNumber, t.departmentId)}
                           disabled={actionLoading}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-500 hover:text-red-600 rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-sm"
+                          className="inline-flex items-center justify-center gap-1 px-3 py-1.5 min-w-[95px] text-xs font-bold bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-500 hover:text-red-600 rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-sm"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
