@@ -70,6 +70,13 @@ const callNextPatient = async (req, res) => {
     ticket.status = 'serving';
     await ticket.save();
 
+    // Emit socket updates
+    const io = req.app?.get?.('io');
+    if (io) {
+      io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
+      io.to(`department_${departmentId}`).emit('queue_updated', { departmentId });
+    }
+
     return res.status(200).json({
       success: true,
       ticket,
@@ -101,6 +108,13 @@ const completeCurrentPatient = async (req, res) => {
 
     ticket.status = 'completed';
     await ticket.save();
+
+    // Emit socket updates
+    const io = req.app?.get?.('io');
+    if (io) {
+      io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
+      io.to(`department_${departmentId}`).emit('queue_updated', { departmentId });
+    }
 
     return res.status(200).json({
       success: true,

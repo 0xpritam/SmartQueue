@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { getMyTickets } from '../api/tickets';
 import { getWaitingTickets } from '../api/queues';
 import { getDepartments } from '../api/departments';
+import { useSocket } from '../context/SocketContext';
 
 const PatientDashboard = () => {
   const { currentUser } = useAuth();
@@ -91,6 +92,33 @@ const PatientDashboard = () => {
     }, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  const { socket, connectionStatus } = useSocket();
+
+  // Socket subscription for active departments and tickets
+  useEffect(() => {
+    if (!socket) return;
+
+    const activeTickets = tickets.filter(t => t.status === 'waiting' || t.status === 'serving');
+    
+    activeTickets.forEach(t => {
+      socket.emit('join_ticket', t.id);
+      socket.emit('join_department', t.departmentId);
+    });
+
+    const handleUpdate = () => {
+      console.log('[SOCKET] Refreshing patient dashboard data');
+      fetchPatientData(true);
+    };
+
+    socket.on('ticket_updated', handleUpdate);
+    socket.on('queue_updated', handleUpdate);
+
+    return () => {
+      socket.off('ticket_updated', handleUpdate);
+      socket.off('queue_updated', handleUpdate);
+    };
+  }, [socket, tickets]);
 
   // Sync profile details if currentUser properties update
   useEffect(() => {
@@ -208,9 +236,23 @@ const PatientDashboard = () => {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="space-y-2 text-center sm:text-left">
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-blue-800/80 text-blue-100 text-[10px] font-bold uppercase tracking-wider border border-blue-700">
-              Patient Portal
-            </span>
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-blue-800/80 text-blue-100 text-[10px] font-bold uppercase tracking-wider border border-blue-700">
+                Patient Portal
+              </span>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-slate-800 text-[9px] font-bold uppercase tracking-wider border border-slate-700 text-slate-300">
+                <span className={`h-1.5 w-1.5 rounded-full ${
+                  connectionStatus === 'connected' ? 'bg-emerald-500 animate-pulse' :
+                  connectionStatus === 'reconnecting' ? 'bg-amber-500 animate-ping' :
+                  'bg-slate-400'
+                }`} />
+                <span>
+                  {connectionStatus === 'connected' ? 'Live Connected' :
+                   connectionStatus === 'reconnecting' ? 'Reconnecting' :
+                   'Offline (Polling)'}
+                </span>
+              </div>
+            </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               Welcome back, {profileForm.name}
             </h1>

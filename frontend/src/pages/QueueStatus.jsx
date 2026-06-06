@@ -5,6 +5,7 @@ import PatientNavbar from '../components/PatientNavbar';
 import PatientFooter from '../components/PatientFooter';
 import { useAuth } from '../context/AuthContext';
 import { getTicket } from '../api/tickets';
+import { useSocket } from '../context/SocketContext';
 import { 
   getCurrentServing, 
   getWaitingTickets
@@ -125,6 +126,43 @@ const QueueStatus = () => {
 
     return () => clearInterval(interval);
   }, [ticketId, token]);
+
+  const { socket, connectionStatus } = useSocket();
+
+  // Socket Subscription
+  useEffect(() => {
+    if (!socket || !ticketId) return;
+
+    console.log(`[SOCKET] Subscribing to ticket room: ${ticketId}`);
+    socket.emit('join_ticket', ticketId);
+
+    if (ticket && ticket.departmentId) {
+      socket.emit('join_department', ticket.departmentId);
+    }
+
+    const handleTicketUpdated = (updatedTicket) => {
+      if (updatedTicket.id === ticketId) {
+        console.log('[SOCKET] Received ticket update:', updatedTicket.status);
+        setTicket(updatedTicket);
+        fetchQueueData(true);
+      }
+    };
+
+    const handleQueueUpdated = (data) => {
+      if (ticket && data.departmentId === ticket.departmentId) {
+        console.log('[SOCKET] Received department queue update');
+        fetchQueueData(true);
+      }
+    };
+
+    socket.on('ticket_updated', handleTicketUpdated);
+    socket.on('queue_updated', handleQueueUpdated);
+
+    return () => {
+      socket.off('ticket_updated', handleTicketUpdated);
+      socket.off('queue_updated', handleQueueUpdated);
+    };
+  }, [socket, ticketId, ticket?.departmentId]);
 
   // Calculate position in queue (how many people are ahead of us)
   const calculateQueuePosition = () => {
@@ -335,8 +373,28 @@ const QueueStatus = () => {
                   </svg>
                 )}
               </div>
-              <div>
-                <p className="font-bold">Live Status update</p>
+              <div className="flex-grow">
+                <div className="flex justify-between items-center w-full">
+                  <p className="font-bold">Live Status update</p>
+                  
+                  {/* Connection Indicator badge */}
+                  <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border bg-white/50">
+                    <span className={`h-1.5 w-1.5 rounded-full ${
+                      connectionStatus === 'connected' ? 'bg-emerald-500 animate-pulse' :
+                      connectionStatus === 'reconnecting' ? 'bg-amber-500 animate-ping' :
+                      'bg-slate-400'
+                    }`} />
+                    <span className={
+                      connectionStatus === 'connected' ? 'text-emerald-700' :
+                      connectionStatus === 'reconnecting' ? 'text-amber-700' :
+                      'text-slate-500'
+                    }>
+                      {connectionStatus === 'connected' ? 'Live connected' :
+                       connectionStatus === 'reconnecting' ? 'Reconnecting' :
+                       'Offline (Polling)'}
+                    </span>
+                  </div>
+                </div>
                 <p className="mt-0.5 leading-relaxed opacity-90">{statusConfig.desc}</p>
               </div>
             </motion.div>

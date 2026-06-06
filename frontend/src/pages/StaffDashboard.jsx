@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getDepartments } from '../api/departments';
 import { getAllTickets, updateTicketStatus } from '../api/tickets';
+import { useSocket } from '../context/SocketContext';
 import { 
   getCurrentServing, 
   getWaitingTickets, 
@@ -62,6 +63,33 @@ const StaffDashboard = () => {
     }, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  const { socket, connectionStatus } = useSocket();
+
+  // Socket room joining for all departments
+  useEffect(() => {
+    if (!socket || departments.length === 0) return;
+
+    departments.forEach(dept => {
+      console.log(`[SOCKET] Staff dashboard joining room: department_${dept.id}`);
+      socket.emit('join_department', dept.id);
+    });
+  }, [socket, departments]);
+
+  // Socket queue update subscription
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUpdate = () => {
+      console.log('[SOCKET] Refreshing staff dashboard queue data');
+      refreshQueueData(true);
+    };
+
+    socket.on('queue_updated', handleUpdate);
+    return () => {
+      socket.off('queue_updated', handleUpdate);
+    };
+  }, [socket]);
 
   // Seed Timeline Activity logs from historical updates
   useEffect(() => {
@@ -216,6 +244,18 @@ const StaffDashboard = () => {
           </div>
 
           <div className="flex items-center gap-4">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-850 text-[9px] font-bold uppercase tracking-wider border border-slate-700 text-slate-300">
+              <span className={`h-1.5 w-1.5 rounded-full ${
+                connectionStatus === 'connected' ? 'bg-emerald-500 animate-pulse' :
+                connectionStatus === 'reconnecting' ? 'bg-amber-500 animate-ping' :
+                'bg-slate-400'
+              }`} />
+              <span>
+                {connectionStatus === 'connected' ? 'Live connected' :
+                 connectionStatus === 'reconnecting' ? 'Reconnecting' :
+                 'Offline (Polling)'}
+              </span>
+            </div>
             <div className="text-right hidden sm:block">
               <span className="text-xs font-bold block text-slate-200">{currentUser?.name || 'Staff User'}</span>
               <span className="text-[10px] text-teal-400 font-bold block uppercase tracking-wide">Operations Staff</span>

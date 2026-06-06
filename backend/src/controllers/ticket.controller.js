@@ -34,6 +34,12 @@ const generateTicket = async (req, res) => {
       departmentId,
     });
 
+    // Emit socket update
+    const io = req.app?.get?.('io');
+    if (io) {
+      io.to(`department_${departmentId}`).emit('queue_updated', { departmentId });
+    }
+
     return res.status(201).json({
       success: true,
       message: 'Ticket generated successfully',
@@ -154,6 +160,13 @@ const updateTicketStatus = async (req, res) => {
 
     ticket.status = status;
     await ticket.save();
+
+    // Emit socket updates
+    const io = req.app?.get?.('io');
+    if (io) {
+      io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
+      io.to(`department_${ticket.departmentId}`).emit('queue_updated', { departmentId: ticket.departmentId });
+    }
 
     return res.status(200).json({
       success: true,

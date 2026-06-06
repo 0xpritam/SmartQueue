@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">57.89% </span>
+                <span class="strong">54.68% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>33/57</span>
+                <span class='fraction'>35/64</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">42.85% </span>
+                <span class="strong">38.88% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>6/14</span>
+                <span class='fraction'>7/18</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">60% </span>
+                <span class="strong">56.45% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>33/55</span>
+                <span class='fraction'>35/62</span>
             </div>
         
             
@@ -245,7 +245,20 @@
 <a name='L180'></a><a href='#L180'>180</a>
 <a name='L181'></a><a href='#L181'>181</a>
 <a name='L182'></a><a href='#L182'>182</a>
-<a name='L183'></a><a href='#L183'>183</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">4x</span>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -281,6 +294,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -401,6 +420,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -462,6 +488,12 @@ const generateTicket = async (req, res) =&gt; {
       userId: req.user.id,
       departmentId,
     });
+&nbsp;
+    // Emit socket update
+    const io = req.app?.get?.('io');
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (io) {
+<span class="cstat-no" title="statement not covered" >      io.to(`department_${departmentId}`).emit('queue_updated', { departmentId });</span>
+    }
 &nbsp;
     return res.status(201).json({
       success: true,
@@ -584,6 +616,13 @@ const updateTicketStatus = <span class="fstat-no" title="function not covered" >
 <span class="cstat-no" title="statement not covered" >    ticket.status = status;</span>
 <span class="cstat-no" title="statement not covered" >    await ticket.save();</span>
 &nbsp;
+    // Emit socket updates
+    const io = <span class="cstat-no" title="statement not covered" >req.app?.get?.('io');</span>
+<span class="cstat-no" title="statement not covered" >    if (io) {</span>
+<span class="cstat-no" title="statement not covered" >      io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);</span>
+<span class="cstat-no" title="statement not covered" >      io.to(`department_${ticket.departmentId}`).emit('queue_updated', { departmentId: ticket.departmentId });</span>
+    }
+&nbsp;
 <span class="cstat-no" title="statement not covered" >    return res.status(200).json({</span>
       success: true,
       message: 'Ticket status updated successfully',
@@ -616,7 +655,7 @@ module.exports = {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-06T19:56:38.403Z
+                at 2026-06-06T21:03:18.551Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
