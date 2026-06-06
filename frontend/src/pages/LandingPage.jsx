@@ -91,6 +91,7 @@ const LandingPage = () => {
             <Link to="/" className="hover:text-blue-700 transition-colors">Home</Link>
             <Link to="/hospitals" className="hover:text-blue-700 transition-colors">Find Hospitals</Link>
             <Link to="/book-ticket" className="hover:text-blue-700 transition-colors">Book Queue</Link>
+            <Link to="/ai-assistant" className="hover:text-blue-700 transition-colors">AI Assistant</Link>
             <a href="#why-smartqueue" className="hover:text-blue-700 transition-colors">Why SmartQueue</a>
             <a href="#tracker" className="hover:text-blue-700 transition-colors">Track Status</a>
             <a href="#contact" className="hover:text-blue-700 transition-colors">Hospital Partnerships</a>
@@ -369,6 +370,14 @@ const LandingPage = () => {
                 Locate nearest placeholder clinic supporting your concerns
               </li>
             </ul>
+            <div className="pt-2">
+              <Link to="/ai-assistant" className="btn-primary py-2.5 px-6 font-bold text-xs flex items-center justify-center gap-1.5 w-fit">
+                Try AI Triage Assistant
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </Link>
+            </div>
           </div>
 
           {/* Chat Mockup Right */}

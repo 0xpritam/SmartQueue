@@ -7,7 +7,7 @@ export const MOCK_HOSPITALS = [
     distance: '1.2 km',
     rating: 4.8,
     phone: '+1 (555) 123-4567',
-    departments: ['Cardiology', 'Pediatrics', 'Orthopedics', 'General OPD', 'Radiology', 'Emergency Triage']
+    departments: ['Cardiology', 'Pediatrics', 'Orthopedics', 'General Medicine', 'Radiology', 'Emergency Triage', 'Dermatology', 'Dental']
   },
   {
     id: 'metro-general',
@@ -16,7 +16,7 @@ export const MOCK_HOSPITALS = [
     distance: '3.4 km',
     rating: 4.6,
     phone: '+1 (555) 987-6543',
-    departments: ['Cardiology', 'Pediatrics', 'Orthopedics', 'General OPD', 'Radiology']
+    departments: ['Cardiology', 'Pediatrics', 'Orthopedics', 'General Medicine', 'Radiology', 'Ophthalmology']
   },
   {
     id: 'apex-health',
@@ -25,7 +25,7 @@ export const MOCK_HOSPITALS = [
     distance: '4.8 km',
     rating: 4.5,
     phone: '+1 (555) 456-7890',
-    departments: ['General OPD', 'Pediatrics', 'Orthopedics']
+    departments: ['General Medicine', 'Pediatrics', 'Orthopedics', 'Dental', 'Dermatology']
   },
   {
     id: 'valley-care',
@@ -34,7 +34,7 @@ export const MOCK_HOSPITALS = [
     distance: '6.5 km',
     rating: 4.7,
     phone: '+1 (555) 321-0987',
-    departments: ['General OPD', 'Radiology', 'Emergency Triage']
+    departments: ['General Medicine', 'Radiology', 'Emergency Triage', 'Ophthalmology']
   }
 ];
 
@@ -43,19 +43,26 @@ export const MOCK_DEPARTMENTS_STATS = {
   Cardiology: { waitTimePerPerson: 10, baseQueue: 3, prefix: 'CAR' },
   Pediatrics: { waitTimePerPerson: 8, baseQueue: 6, prefix: 'PED' },
   Orthopedics: { waitTimePerPerson: 12, baseQueue: 2, prefix: 'ORT' },
-  'General OPD': { waitTimePerPerson: 5, baseQueue: 11, prefix: 'OPD' },
+  'General Medicine': { waitTimePerPerson: 5, baseQueue: 9, prefix: 'MED' },
   Radiology: { waitTimePerPerson: 15, baseQueue: 4, prefix: 'RAD' },
-  'Emergency Triage': { waitTimePerPerson: 4, baseQueue: 1, prefix: 'EMR' }
+  'Emergency Triage': { waitTimePerPerson: 4, baseQueue: 1, prefix: 'EMR' },
+  Dermatology: { waitTimePerPerson: 9, baseQueue: 5, prefix: 'DER' },
+  Ophthalmology: { waitTimePerPerson: 11, baseQueue: 4, prefix: 'OPH' },
+  Dental: { waitTimePerPerson: 13, baseQueue: 3, prefix: 'DEN' },
+  'General OPD': { waitTimePerPerson: 5, baseQueue: 11, prefix: 'OPD' }
 };
 
 // Simple symptom to department recommendation mapping
 const SYMPTOM_RULES = [
-  { keywords: ['chest', 'heart', 'cardiac', 'palpitations', 'pressure', 'arrhythmia', 'breathless'], department: 'Cardiology' },
-  { keywords: ['child', 'baby', 'infant', 'pediatric', 'kid', 'newborn', 'vaccine child'], department: 'Pediatrics' },
-  { keywords: ['bone', 'fracture', 'joint', 'back pain', 'sprain', 'knee', 'wrist', 'shoulder', 'muscle', 'ligament'], department: 'Orthopedics' },
+  { keywords: ['chest', 'heart', 'cardiac', 'palpitations', 'pressure', 'arrhythmia', 'breathless', 'chest pain'], department: 'Cardiology' },
+  { keywords: ['child', 'baby', 'infant', 'pediatric', 'kid', 'newborn', 'teething', 'growth', 'vaccine', 'child health'], department: 'Pediatrics' },
+  { keywords: ['bone', 'fracture', 'joint', 'back pain', 'sprain', 'knee', 'wrist', 'shoulder', 'muscle', 'ligament', 'arthritis'], department: 'Orthopedics' },
   { keywords: ['scan', 'xray', 'x-ray', 'mri', 'ultrasound', 'imaging', 'sonography', 'ct scan'], department: 'Radiology' },
-  { keywords: ['emergency', 'accident', 'trauma', 'bleeding', 'severe', 'burn', 'cut', 'chest pain emergency'], department: 'Emergency Triage' },
-  { keywords: ['fever', 'cold', 'cough', 'headache', 'general', 'consultation', 'regular', 'checkup', 'throat', 'stomach', 'flu'], department: 'General OPD' }
+  { keywords: ['emergency', 'accident', 'trauma', 'bleeding', 'severe', 'burn', 'cut'], department: 'Emergency Triage' },
+  { keywords: ['rash', 'skin', 'itch', 'acne', 'eczema', 'dermatitis', 'allergy skin', 'mole', 'hives', 'dry skin', 'skin rash'], department: 'Dermatology' },
+  { keywords: ['eye', 'vision', 'blindness', 'blur', 'retina', 'ophthalmology', 'cornea', 'cataract', 'glaucoma', 'ocular', 'eye pain'], department: 'Ophthalmology' },
+  { keywords: ['tooth', 'dental', 'teeth', 'cavity', 'gum', 'dentist', 'filling', 'braces', 'mouth sore', 'oral', 'tooth pain'], department: 'Dental' },
+  { keywords: ['fever', 'cold', 'cough', 'headache', 'flu', 'sore throat', 'body ache', 'chills', 'weakness', 'general', 'checkup'], department: 'General Medicine' }
 ];
 
 /**
@@ -225,3 +232,51 @@ export const advanceQueueForTicket = (ticketId) => {
 
   return updated;
 };
+
+// Department recommendation explanation, disclaimers and tips
+export const getDepartmentRecommendationDetails = (department) => {
+  const details = {
+    Cardiology: {
+      reason: "Cardiology manages heart and blood vessel health. Chest pains, irregular heartbeats, or severe cardiac pressure relate to cardiovascular function and are evaluated by a cardiologist.",
+      disclaimerTip: "Drink plenty of water and rest. If you are experiencing sudden, severe, or crushing chest pain that radiates to your arm, neck, or jaw, please call emergency services immediately."
+    },
+    Dermatology: {
+      reason: "Dermatology focuses on skin, hair, and nail health. A rash, severe skin irritation, dry patches, acne, or suspicious lesions are evaluated by a dermatologist.",
+      disclaimerTip: "Monitor if the rash spreads rapidly, forms blisters, or is accompanied by a fever. Avoid scratching to prevent secondary skin infections."
+    },
+    Ophthalmology: {
+      reason: "Ophthalmology specializes in eye care and vision health. Eye pains, severe ocular irritations, or sudden vision fluctuations require a specialist eye exam.",
+      disclaimerTip: "Do not rub your eyes. Sudden loss of vision, eye trauma, or chemical exposure should be treated as an immediate ophthalmic emergency."
+    },
+    'General Medicine': {
+      reason: "General Medicine deals with primary health concerns, general diagnoses, and systemic wellness. A fever, cold, cough, flu, or generalized body aches are handled here.",
+      disclaimerTip: "Stay hydrated and rest. Seek immediate emergency care if you experience high fevers that do not respond to medication or are accompanied by severe stiff neck or confusion."
+    },
+    Dental: {
+      reason: "Dental services cover oral health, tooth care, gum treatments, and dental hygiene. Toothaches, cavities, or swelling inside the mouth relate to dental health.",
+      disclaimerTip: "Use warm salt water rinses to relieve irritation. Severe swelling in the face, jaw, or throat accompanied by fever could indicate an infection and requires immediate care."
+    },
+    Pediatrics: {
+      reason: "Pediatrics specializes in infant, toddler, and child healthcare, monitoring child development, childhood illnesses, and pediatric wellness.",
+      disclaimerTip: "Keep children comfortable and hydrated. For high fevers or lethargy in infants under 3 months, seek immediate emergency medical advice."
+    },
+    Orthopedics: {
+      reason: "Orthopedics specializes in the musculoskeletal system, diagnosing bone fractures, joint pains, backaches, and muscle tears.",
+      disclaimerTip: "Apply ice and elevate injured joints. Seek immediate care if you cannot bear weight or if there is visible deformity."
+    },
+    Radiology: {
+      reason: "Radiology performs diagnostic imaging checks such as X-rays, MRI scans, CT scans, and ultrasounds.",
+      disclaimerTip: "Please ensure you have a physician's referral note before booking imaging services."
+    },
+    'Emergency Triage': {
+      reason: "Emergency Triage is for acute traumas, severe injuries, and sudden life-threatening concerns.",
+      disclaimerTip: "Do not wait in regular lines for severe bleeding, cardiac events, or stroke symptoms. Proceed directly to the ER."
+    }
+  };
+
+  return details[department] || {
+    reason: "General consultation and routing assessment. Appropriate for primary diagnostics.",
+    disclaimerTip: "Always consult a doctor for diagnosis."
+  };
+};
+

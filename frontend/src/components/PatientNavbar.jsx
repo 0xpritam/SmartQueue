@@ -36,6 +36,7 @@ const PatientNavbar = () => {
         <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
           <Link to="/hospitals" className="hover:text-blue-700 transition-colors">Find Hospitals</Link>
           <Link to="/book-ticket" className="hover:text-blue-700 transition-colors">Book Queue</Link>
+          <Link to="/ai-assistant" className="hover:text-blue-700 transition-colors">AI Assistant</Link>
         </nav>
 
         {/* Quick Ticket Tracker Search Box & Staff button */}
@@ -87,6 +88,7 @@ const PatientNavbar = () => {
           <div className="flex flex-col gap-3 font-semibold text-slate-700 text-sm">
             <Link to="/hospitals" onClick={() => setMobileMenuOpen(false)} className="hover:text-blue-700 py-1 transition-colors">Find Hospitals</Link>
             <Link to="/book-ticket" onClick={() => setMobileMenuOpen(false)} className="hover:text-blue-700 py-1 transition-colors">Book Queue</Link>
+            <Link to="/ai-assistant" onClick={() => setMobileMenuOpen(false)} className="hover:text-blue-700 py-1 transition-colors">AI Assistant</Link>
           </div>
           
           <form onSubmit={handleTrackSubmit} className="relative flex items-center">
