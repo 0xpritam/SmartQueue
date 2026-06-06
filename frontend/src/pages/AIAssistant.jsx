@@ -3,16 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import PatientNavbar from '../components/PatientNavbar';
 import PatientFooter from '../components/PatientFooter';
+import { getHospitals } from '../api/hospital';
 import { 
   recommendDepartment, 
-  getDepartmentRecommendationDetails, 
-  MOCK_HOSPITALS, 
-  getDepartmentStats 
+  getDepartmentRecommendationDetails 
 } from '../api/mockData';
 
 const AIAssistant = () => {
   const navigate = useNavigate();
   const messagesEndRef = useRef(null);
+
+  // Fictional hospitals fetched from backend DB mapping
+  const [dbHospitals, setDbHospitals] = useState([]);
 
   // Chat message stream state
   const [messages, setMessages] = useState([
@@ -36,6 +38,21 @@ const AIAssistant = () => {
     { label: "Child fever", text: "My toddler has child health concerns and a mild fever." }
   ];
 
+  // Fetch real hospital listings from backend on load
+  useEffect(() => {
+    const loadHospitals = async () => {
+      try {
+        const res = await getHospitals();
+        if (res && res.success) {
+          setDbHospitals(res.hospitals || []);
+        }
+      } catch (err) {
+        console.error('Failed to load hospitals for AI triage:', err);
+      }
+    };
+    loadHospitals();
+  }, []);
+
   // Auto-scroll to the bottom of the chat log
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -52,37 +69,54 @@ const AIAssistant = () => {
     // Simulate API network latency
     await new Promise((resolve) => setTimeout(resolve, 1200));
 
-    const recommendedDept = recommendDepartment(userText);
+    const recommendedDeptName = recommendDepartment(userText);
 
     let textResponse = "";
     let cardData = null;
 
-    if (recommendedDept) {
-      const details = getDepartmentRecommendationDetails(recommendedDept);
+    if (recommendedDeptName) {
+      const details = getDepartmentRecommendationDetails(recommendedDeptName);
       
-      // Find hospitals that support this department
-      const supportingHospitals = MOCK_HOSPITALS.filter(h => 
-        h.departments.includes(recommendedDept)
+      // Filter the backend hospitals that offer this department
+      const supportingHospitals = dbHospitals.filter(h => 
+        h.departments.some(d => d.name === recommendedDeptName)
       );
 
-      // Calculate average wait time across these hospitals
-      let totalWait = 0;
-      supportingHospitals.forEach(h => {
-        const stats = getDepartmentStats(h.id, recommendedDept);
-        totalWait += stats.estWaitTime;
+      // Find the department IDs from each hospital to send when booking
+      let resolvedDeptId = '';
+      const mappedHospitals = supportingHospitals.map(h => {
+        const dMatch = h.departments.find(d => d.name === recommendedDeptName);
+        if (dMatch && !resolvedDeptId) {
+          resolvedDeptId = dMatch.id;
+        }
+        return {
+          id: h.id,
+          name: h.name,
+          distance: h.distance,
+          deptId: dMatch ? dMatch.id : ''
+        };
       });
-      const avgWait = supportingHospitals.length > 0
-        ? Math.round(totalWait / supportingHospitals.length)
+
+      // Calculate average wait time based on active queues in the network
+      let totalWait = 0;
+      mappedHospitals.forEach((h, idx) => {
+        // Mock a realistic wait count
+        const mockQueue = (idx % 3) + 3;
+        totalWait += mockQueue * 8;
+      });
+      const avgWait = mappedHospitals.length > 0
+        ? Math.round(totalWait / mappedHospitals.length)
         : 15;
 
-      textResponse = `Based on the symptoms you described, I recommend routing your booking to the **${recommendedDept}** department. Here is the triage recommendation:`;
+      textResponse = `Based on the symptoms you described, I recommend routing your booking to the **${recommendedDeptName}** department. Here is the triage recommendation:`;
       
       cardData = {
-        department: recommendedDept,
+        department: recommendedDeptName,
+        departmentId: resolvedDeptId, // Database UUID
         reason: details.reason,
         disclaimerTip: details.disclaimerTip,
         avgWaitTime: avgWait,
-        hospitals: supportingHospitals.map(h => ({ id: h.id, name: h.name, distance: h.distance }))
+        hospitals: mappedHospitals
       };
     } else {
       textResponse = "I couldn't identify a specific clinical department for those symptoms. For general concerns, you may want to book a ticket in the **General Medicine** department, or describe your symptoms in more detail.";
@@ -103,7 +137,6 @@ const AIAssistant = () => {
   const handleSendMessage = (textToSend) => {
     if (!textToSend.trim()) return;
 
-    // Add user message to log
     const userMsg = {
       id: `user-${Date.now()}`,
       sender: 'user',
@@ -124,9 +157,9 @@ const AIAssistant = () => {
   };
 
   const handleBookRedirect = (card) => {
-    // Redirect to booking page, preselecting the department and the first available hospital
+    // Redirect to booking page pre-loading the first hospital and the DB department ID (UUID)
     const firstHospitalId = card.hospitals.length > 0 ? card.hospitals[0].id : '';
-    navigate(`/book-ticket?hospital=${firstHospitalId}&department=${card.department}`);
+    navigate(`/book-ticket?hospital=${firstHospitalId}&department=${card.departmentId}`);
   };
 
   return (
@@ -136,7 +169,7 @@ const AIAssistant = () => {
       {/* Main chat window container */}
       <main className="max-w-3xl mx-auto px-4 py-8 flex-grow flex flex-col w-full min-h-[500px]">
         
-        {/* Helper disclaimer block */}
+        {/* Explicit medical diagnosis substitute warning disclaimer at the top */}
         <div className="bg-slate-900 border border-slate-800 text-white rounded-xl p-4 mb-6 shadow-sm flex items-start gap-3">
           <div className="p-1.5 rounded bg-teal-500/20 text-teal-400 border border-teal-500/30 flex items-center justify-center shrink-0">
             <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -144,9 +177,9 @@ const AIAssistant = () => {
             </svg>
           </div>
           <div className="space-y-1 text-xs">
-            <h3 className="font-bold uppercase tracking-wider text-teal-400">SmartQueue Clinical Router</h3>
+            <h3 className="font-bold uppercase tracking-wider text-teal-400">SmartQueue Clinical Disclaimer</h3>
             <p className="leading-relaxed text-slate-300">
-              This assistant provides department recommendations only and is not a substitute for professional medical advice. If you are experiencing a medical emergency, please call emergency services or visit the nearest ER immediately.
+              This assistant is not a medical diagnosis tool. It only helps patients identify the most appropriate hospital department.
             </p>
           </div>
         </div>
@@ -157,7 +190,7 @@ const AIAssistant = () => {
           {/* Header */}
           <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-3">
             <div className="h-8 w-8 rounded bg-teal-50 text-teal-600 border border-teal-100 flex items-center justify-center shrink-0">
-              <svg className="w-4 h-4 text-teal-600 animate-pulse" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 21m0 0l-.813-5.096L3 15.187m6 5.813l5.096-.813M21 3L9 15m0 0l-3-3m3 3L3 9" />
               </svg>
             </div>
@@ -243,7 +276,7 @@ const AIAssistant = () => {
                           </div>
                         </div>
 
-                        {/* Card CTA Actions */}
+                        {/* Card Actions */}
                         <div className="bg-slate-50 border-t border-slate-100 p-3">
                           <button
                             onClick={() => handleBookRedirect(msg.cardData)}

@@ -6,6 +6,8 @@ const app = express();
 const authRoutes = require('./routes/auth.routes');
 const ticketRoutes = require('./routes/ticket.routes');
 const queueRoutes = require('./routes/queue.routes');
+const hospitalRoutes = require('./routes/hospital.routes');
+const departmentRoutes = require('./routes/department.routes');
 
 // Global Middleware
 app.use(cors());
@@ -16,6 +18,8 @@ app.use(morgan('dev'));
 app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/queues', queueRoutes);
+app.use('/api/hospitals', hospitalRoutes);
+app.use('/api/departments', departmentRoutes);
 
 // Health Check
 app.get('/api/health', (req, res) => {

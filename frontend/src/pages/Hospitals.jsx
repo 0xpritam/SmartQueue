@@ -1,16 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import PatientNavbar from '../components/PatientNavbar';
 import PatientFooter from '../components/PatientFooter';
-import { MOCK_HOSPITALS, getDepartmentStats } from '../api/mockData';
+import { getHospitals } from '../api/hospital';
 
 const Hospitals = () => {
+  const [hospitals, setHospitals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
 
+  const fetchHospitalsList = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getHospitals();
+      if (data && data.success) {
+        setHospitals(data.hospitals || []);
+      } else {
+        setError(data.message || 'Failed to fetch hospital records.');
+      }
+    } catch (err) {
+      console.error('Fetch hospitals error:', err);
+      setError(err.response?.data?.message || err.message || 'Connection to backend API failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHospitalsList();
+  }, []);
+
   // Filter hospitals based on search input (name or location)
-  const filteredHospitals = MOCK_HOSPITALS.filter(hospital =>
+  const filteredHospitals = hospitals.filter(hospital =>
     hospital.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     hospital.location.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -21,9 +46,12 @@ const Hospitals = () => {
     let totalWait = 0;
 
     hospital.departments.forEach(dept => {
-      const stats = getDepartmentStats(hospital.id, dept);
-      totalQueue += stats.queueLength;
-      totalWait += stats.estWaitTime;
+      // Deterministic mock calculations based on department name length to look realistic
+      const nameLength = dept.name.length;
+      const queueLength = (nameLength % 5) + 2; 
+      const estWaitTime = queueLength * 8;
+      totalQueue += queueLength;
+      totalWait += estWaitTime;
     });
 
     const avgWait = hospital.departments.length > 0
@@ -73,7 +101,7 @@ const Hospitals = () => {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center space-y-4">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-blue-800/80 text-blue-100 text-xs font-semibold uppercase tracking-wide border border-blue-700">
-            Fictional Outpatient Network
+            SmartQueue Fictional Network
           </span>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
             Select a Partner Hospital
@@ -90,7 +118,8 @@ const Hospitals = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search by hospital name or location..."
-                className="w-full bg-white border border-slate-300 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 shadow-sm"
+                disabled={loading || error}
+                className="w-full bg-white border border-slate-300 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 shadow-sm disabled:opacity-50"
               />
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -103,21 +132,69 @@ const Hospitals = () => {
       </section>
 
       {/* Hospital Listings Grid */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow">
-        {filteredHospitals.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg border border-slate-200 shadow-sm max-w-md mx-auto">
-            <svg className="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow w-full">
+        
+        {loading ? (
+          /* Animated Skeleton Loader Grid */
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {[1, 2, 3, 4].map(idx => (
+              <div 
+                key={idx} 
+                className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col md:flex-row animate-pulse"
+              >
+                <div className="md:w-1/3 bg-slate-200 min-h-[160px]" />
+                <div className="p-6 flex-grow space-y-4 flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="h-4 bg-slate-200 rounded w-3/4" />
+                    <div className="h-3 bg-slate-200 rounded w-1/2" />
+                  </div>
+                  <div className="h-10 bg-slate-100 rounded w-full" />
+                  <div className="space-y-1.5">
+                    <div className="h-3 bg-slate-200 rounded w-1/3" />
+                    <div className="flex gap-1.5 flex-wrap">
+                      <div className="h-5 bg-slate-100 rounded w-14" />
+                      <div className="h-5 bg-slate-100 rounded w-16" />
+                      <div className="h-5 bg-slate-100 rounded w-12" />
+                    </div>
+                  </div>
+                  <div className="h-8 bg-slate-200 rounded w-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          /* API Connection Error State */
+          <div className="text-center py-12 bg-white rounded-lg border border-red-200 shadow-sm max-w-md mx-auto p-8 space-y-4">
+            <div className="h-12 w-12 rounded-full bg-red-50 border border-red-100 flex items-center justify-center mx-auto text-red-500">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="text-sm font-bold text-slate-900">Failed to Load Clinics</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">{error}</p>
+            <button 
+              onClick={fetchHospitalsList} 
+              className="btn-primary py-2 px-6 text-xs font-semibold cursor-pointer shadow-sm"
+            >
+              Retry Connection
+            </button>
+          </div>
+        ) : filteredHospitals.length === 0 ? (
+          /* Empty Search State */
+          <div className="text-center py-12 bg-white rounded-lg border border-slate-200 shadow-sm max-w-md mx-auto p-8 space-y-3">
+            <svg className="w-12 h-12 text-slate-300 mx-auto" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <h3 className="text-sm font-bold text-slate-900">No Hospitals Found</h3>
-            <p className="text-xs text-slate-500 mt-1">Try checking your spelling or search terms.</p>
+            <p className="text-xs text-slate-500">Try adjusting your search criteria or review spelling.</p>
           </div>
         ) : (
+          /* Hospitals Grid */
           <motion.div 
             variants={containerVariants}
             initial="hidden"
             animate="show"
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8"
+            className="grid grid-cols-1 lg:grid-cols-2 gap-8"
           >
             {filteredHospitals.map((hospital) => {
               const { totalQueue, avgWait } = calculateHospitalStats(hospital);
@@ -125,7 +202,7 @@ const Hospitals = () => {
                 <motion.div
                   key={hospital.id}
                   variants={cardVariants}
-                  className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row"
+                  className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row animate-fadeIn"
                 >
                   {/* CSS Hospital Thumbnail / Graphic */}
                   <div className="md:w-1/3 bg-slate-900 relative min-h-[160px] flex items-center justify-center p-6 text-white shrink-0">
@@ -194,12 +271,12 @@ const Hospitals = () => {
                       <div className="space-y-1.5">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Departments Available</span>
                         <div className="flex flex-wrap gap-1.5">
-                          {hospital.departments.map((dept, i) => (
+                          {hospital.departments.map((dept) => (
                             <span 
-                              key={i} 
+                              key={dept.id} 
                               className="px-2 py-0.5 bg-slate-100 text-[10px] text-slate-600 font-semibold rounded border border-slate-200 hover:bg-slate-200 transition-colors"
                             >
-                              {dept}
+                              {dept.name}
                             </span>
                           ))}
                         </div>
@@ -210,7 +287,7 @@ const Hospitals = () => {
                     <div className="pt-6 mt-auto">
                       <button
                         onClick={() => handleBookClick(hospital.id)}
-                        className="btn-primary w-full py-2.5 text-xs font-bold flex items-center justify-center gap-2 group"
+                        className="btn-primary w-full py-2.5 text-xs font-bold flex items-center justify-center gap-2 group cursor-pointer"
                       >
                         Book Queue Slot
                         <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

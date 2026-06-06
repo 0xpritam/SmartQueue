@@ -3,127 +3,259 @@ import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import PatientNavbar from '../components/PatientNavbar';
 import PatientFooter from '../components/PatientFooter';
+import { useAuth } from '../context/AuthContext';
+import { getTicket } from '../api/ticket';
 import { 
-  getTicketDetails, 
-  advanceQueueForTicket, 
-  updateTicket 
-} from '../api/mockData';
+  getCurrentServing, 
+  getWaitingTickets,
+  callNextPatient,
+  completeCurrentPatient 
+} from '../api/queue';
 
 const QueueStatus = () => {
-  const { ticketId } = useParams();
+  const { token } = useAuth();
+  const { ticketId } = useParams(); // UUID of the ticket
+  
+  // State variables
   const [ticket, setTicket] = useState(null);
+  const [servingTicket, setServingTicket] = useState(null);
+  const [waitingTickets, setWaitingTickets] = useState([]);
+  
+  const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [error, setError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  // Load and refresh ticket details
-  const fetchTicket = () => {
-    if (!ticketId) return;
-    const details = getTicketDetails(ticketId);
-    if (details) {
-      setTicket(details);
-      setNotFound(false);
-    } else {
-      setNotFound(true);
+  // Retrieve patient metadata stored in localStorage
+  const [meta, setMeta] = useState({
+    patientName: 'Outpatient Patient',
+    patientAge: '—',
+    patientPhone: '—',
+    reason: '',
+    hospitalName: 'SmartQueue Partner Clinic',
+    departmentName: 'Clinical Division'
+  });
+
+  // Load metadata on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(`smartqueue_meta_${ticketId}`);
+    if (stored) {
+      setMeta(JSON.parse(stored));
+    }
+  }, [ticketId]);
+
+  // Fetch ticket details and active queue stats from backend APIs
+  const fetchQueueData = async (isSilent = false) => {
+    if (!token) {
+      setError('You must be logged in to track ticket status.');
+      setLoading(false);
+      return;
+    }
+    if (!isSilent) setLoading(true);
+    
+    try {
+      // 1. Fetch main ticket details
+      const ticketRes = await getTicket(ticketId);
+      if (ticketRes && ticketRes.success && ticketRes.ticket) {
+        const t = ticketRes.ticket;
+        setTicket(t);
+        setNotFound(false);
+        setError(null);
+
+        // 2. Fetch currently serving ticket for this department
+        try {
+          const servingRes = await getCurrentServing(t.departmentId);
+          if (servingRes && servingRes.success) {
+            setServingTicket(servingRes.ticket);
+          } else {
+            setServingTicket(null);
+          }
+        } catch (sErr) {
+          // 404 is a normal case when no patient is currently being served
+          setServingTicket(null);
+        }
+
+        // 3. Fetch waiting list for this department
+        const waitingRes = await getWaitingTickets(t.departmentId);
+        if (waitingRes && waitingRes.success) {
+          setWaitingTickets(waitingRes.tickets || []);
+        }
+      } else {
+        setNotFound(true);
+      }
+    } catch (err) {
+      console.error('Fetch queue status error:', err);
+      if (err.response?.status === 404) {
+        setNotFound(true);
+      } else {
+        setError(err.response?.data?.message || err.message || 'API connection failed.');
+      }
+    } finally {
+      if (!isSilent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchTicket();
+    fetchQueueData();
 
-    // Simulate real-time polling (e.g. WebSocket / API polling simulation)
-    // Every 2 seconds it pulls from localStorage so the queue state stays reactive
+    // Poll server every 3 seconds for real-time state updates
     const interval = setInterval(() => {
-      fetchTicket();
-    }, 2000);
+      fetchQueueData(true);
+    }, 3000);
 
     return () => clearInterval(interval);
-  }, [ticketId]);
+  }, [ticketId, token]);
 
-  // Demo: Advance queue manually
-  const handleAdvanceQueue = () => {
-    if (!ticket) return;
-    const updated = advanceQueueForTicket(ticket.ticketId);
-    setTicket(updated);
+  // Calculate position in queue (how many people are ahead of us)
+  const calculateQueuePosition = () => {
+    if (!ticket) return { position: 0, peopleAhead: 0 };
+    if (ticket.status === 'serving') return { position: 0, peopleAhead: 0 };
+    if (ticket.status === 'completed') return { position: 0, peopleAhead: 0 };
+
+    const index = waitingTickets.findIndex(t => t.id === ticket.id);
+    if (index !== -1) {
+      return { position: index + 1, peopleAhead: index };
+    }
+    
+    // Fallback if not found in waiting tickets (e.g. state is out of sync)
+    return { position: 1, peopleAhead: 0 };
   };
 
-  // Demo: Reset queue to original wait state
-  const handleResetQueue = () => {
-    if (!ticket) return;
-    const baseServing = ticket.tokenNumber - 4 > 100 ? ticket.tokenNumber - 4 : 100;
-    const updated = updateTicket(ticket.ticketId, {
-      currentServingToken: baseServing,
-      status: 'Waiting'
-    });
-    setTicket(updated);
+  // ADVANCE QUEUE SIMULATOR (Modifies backend MySQL state directly)
+  const handleAdvanceQueue = async () => {
+    if (!ticket || !token) return;
+    setActionLoading(true);
+    setError(null);
+    try {
+      if (servingTicket) {
+        // A patient is currently serving. Complete them first.
+        await completeCurrentPatient(ticket.departmentId);
+      } else if (waitingTickets.length > 0) {
+        // No patient is serving. Call the next one from the waiting list.
+        await callNextPatient(ticket.departmentId);
+      } else {
+        setError('No active patients in queue to advance.');
+      }
+      // Instantly refresh
+      await fetchQueueData(true);
+    } catch (err) {
+      console.error('Simulator action error:', err);
+      setError(err.response?.data?.message || 'Failed to simulate queue movement.');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  // Calculate current queue position (how many patients are ahead)
-  const calculatePosition = () => {
-    if (!ticket) return 0;
-    const diff = ticket.tokenNumber - ticket.currentServingToken;
-    return diff > 0 ? diff : 0;
-  };
+  const { position, peopleAhead } = calculateQueuePosition();
+  const estWaitTime = ticket?.status === 'waiting' ? peopleAhead * 8 : 0;
 
-  // Calculate dynamic wait time based on position
-  const calculateCurrentWaitTime = (position) => {
-    if (!ticket) return 0;
-    if (ticket.status === 'Called') return 0;
-    if (ticket.status === 'Completed') return 0;
-    // Estimate 8 minutes per patient ahead
-    return position * 8;
-  };
-
-  const position = calculatePosition();
-  const currentWaitTime = calculateCurrentWaitTime(position);
-
-  // Ticket styling helper based on status
+  // Visual status configurations
   const getStatusConfig = () => {
-    switch (ticket?.status) {
-      case 'Called':
+    if (!ticket) return { bg: '', badge: '', desc: '', color: '' };
+    
+    switch (ticket.status) {
+      case 'serving':
         return {
           bg: 'bg-teal-50 border-teal-200 text-teal-800',
           badge: 'bg-teal-600 text-white animate-pulse',
-          desc: 'Your token is being called! Please proceed to the consultation room immediately.',
-          color: 'text-teal-700'
+          desc: 'Your token is being called! Please proceed to the examination room immediately.',
+          color: 'text-teal-700',
+          label: 'Called'
         };
-      case 'Completed':
+      case 'completed':
         return {
           bg: 'bg-emerald-50 border-emerald-200 text-emerald-800',
           badge: 'bg-emerald-600 text-white',
-          desc: 'Your consultation session is marked as completed. Thank you for checking in online!',
-          color: 'text-emerald-700'
+          desc: 'Your consultation is complete. Thank you for booking online with SmartQueue!',
+          color: 'text-emerald-700',
+          label: 'Completed'
         };
-      case 'Waiting':
+      case 'cancelled':
+        return {
+          bg: 'bg-red-50 border-red-200 text-red-800',
+          badge: 'bg-red-600 text-white',
+          desc: 'This ticket has been cancelled. Please book another ticket to re-enter the queue.',
+          color: 'text-red-700',
+          label: 'Cancelled'
+        };
+      case 'waiting':
       default:
         return {
           bg: 'bg-blue-50 border-blue-200 text-blue-800',
           badge: 'bg-blue-600 text-white',
-          desc: 'You are in queue. Relax at home or in the lobby; we will update your screen live.',
-          color: 'text-blue-700'
+          desc: 'You are in the queue. Relax nearby; this receipt will update live when you are called.',
+          color: 'text-blue-700',
+          label: 'Waiting'
         };
     }
   };
 
   const statusConfig = getStatusConfig();
 
+  // Shorten readable ticket ID for cleaner display (uuid first 8 chars)
+  const getReadableTicketId = () => {
+    if (!ticket) return '';
+    // Use ticketNumber from backend, e.g. TKT-12837918-UUID...
+    // Strip the timestamp and UUID to show a cleaner code or display it in full
+    if (ticket.ticketNumber.startsWith('TKT-')) {
+      const parts = ticket.ticketNumber.split('-');
+      if (parts.length >= 3) {
+        return `TKT-${parts[2].substring(0, 6)}`;
+      }
+    }
+    return ticket.ticketNumber.substring(0, 10);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       <PatientNavbar />
 
       <main className="max-w-xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow w-full">
-        {notFound ? (
+        {loading ? (
+          /* Skeleton Loader */
+          <div className="space-y-6 animate-pulse">
+            <div className="h-10 bg-slate-200 rounded w-full" />
+            <div className="bg-white rounded-2xl h-[380px] border border-slate-200 p-6 space-y-6">
+              <div className="h-6 bg-slate-200 rounded w-1/3 mx-auto" />
+              <div className="h-24 bg-slate-100 rounded w-full" />
+              <div className="grid grid-cols-3 gap-2">
+                <div className="h-12 bg-slate-50 rounded" />
+                <div className="h-12 bg-slate-50 rounded" />
+                <div className="h-12 bg-slate-50 rounded" />
+              </div>
+            </div>
+          </div>
+        ) : !token ? (
+          /* Authentication Required Error State */
+          <div className="text-center py-12 bg-white rounded-lg border border-slate-200 shadow-sm p-8 space-y-4">
+            <svg className="w-16 h-16 text-slate-300 mx-auto" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <h2 className="text-lg font-bold text-slate-900">Sign In Required</h2>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+              Ticket tracking is authenticated. Please log in to view the live progress of your active tickets.
+            </p>
+            <div className="pt-4 flex justify-center gap-4">
+              <Link to="/login" className="btn-primary py-2 px-6 text-xs font-semibold cursor-pointer">
+                Sign In to Account
+              </Link>
+            </div>
+          </div>
+        ) : notFound ? (
+          /* Ticket Not Found Error State */
           <div className="text-center py-12 bg-white rounded-lg border border-slate-200 shadow-sm p-8 space-y-4">
             <svg className="w-16 h-16 text-slate-300 mx-auto" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
             </svg>
             <h2 className="text-lg font-bold text-slate-900">Ticket Not Found</h2>
             <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
-              We couldn't find a queue ticket with ID <span className="font-bold text-slate-800">"{ticketId}"</span>. Make sure the ID is formatted correctly (e.g. CAR-102) and that it was generated on this browser.
+              We couldn't locate ticket record <span className="font-bold text-slate-800">"{ticketId}"</span> in your account history. Verify that the URL matches your generated booking receipt.
             </p>
             <div className="pt-4 flex justify-center gap-4">
-              <Link to="/book-ticket" className="btn-primary py-2 text-xs font-semibold">
-                Book New Ticket
+              <Link to="/book-ticket" className="btn-primary py-2 text-xs font-semibold cursor-pointer">
+                Book Queue
               </Link>
-              <Link to="/hospitals" className="btn-secondary py-2 text-xs font-semibold">
+              <Link to="/hospitals" className="btn-secondary py-2 text-xs font-semibold cursor-pointer">
                 View Hospitals
               </Link>
             </div>
@@ -138,12 +270,12 @@ const QueueStatus = () => {
               className={`border rounded-lg p-4 flex gap-3.5 text-xs font-medium shadow-sm transition-all ${statusConfig.bg}`}
             >
               <div className="h-5 w-5 shrink-0 flex items-center justify-center">
-                {ticket.status === 'Called' ? (
-                  <svg className="h-5 w-5 animate-bounce" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                {ticket.status === 'serving' ? (
+                  <svg className="h-5 w-5 animate-bounce text-teal-600" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                   </svg>
-                ) : ticket.status === 'Completed' ? (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                ) : ticket.status === 'completed' ? (
+                  <svg className="h-5 w-5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 ) : (
@@ -172,10 +304,10 @@ const QueueStatus = () => {
                     SmartQueue Clinic Receipt
                   </div>
                   <h2 className="text-base font-extrabold tracking-tight truncate">
-                    {ticket.hospitalName}
+                    {meta.hospitalName}
                   </h2>
                   <p className="text-[11px] text-slate-300 font-semibold">
-                    Clinical Division: <span className="text-white font-bold">{ticket.department}</span>
+                    Clinical Division: <span className="text-white font-bold">{meta.departmentName}</span>
                   </p>
                 </div>
               </div>
@@ -195,11 +327,11 @@ const QueueStatus = () => {
                   <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                     Your Queue Token Number
                   </div>
-                  <div className={`text-4xl font-black tracking-tight ${statusConfig.color}`}>
-                    {ticket.ticketId}
+                  <div className={`text-3xl font-black tracking-tight truncate px-4 ${statusConfig.color}`}>
+                    {getReadableTicketId()}
                   </div>
                   <div className="inline-block px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider mt-1.5 bg-slate-200 text-slate-700">
-                    Token #{ticket.tokenNumber}
+                    Status: {statusConfig.label}
                   </div>
                 </div>
 
@@ -209,19 +341,19 @@ const QueueStatus = () => {
                   {/* Current Serving */}
                   <div className="space-y-1">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Serving Now</span>
-                    <span className="text-lg font-extrabold text-slate-900 block">
-                      {ticket.status === 'Completed' ? '—' : `${ticket.ticketId.split('-')[0]}-${ticket.currentServingToken}`}
+                    <span className="text-sm font-extrabold text-slate-900 block truncate">
+                      {ticket.status === 'completed' ? '—' : (servingTicket ? `TKT-${servingTicket.ticketNumber.split('-')[2].substring(0,6)}` : 'None')}
                     </span>
                   </div>
 
                   {/* Position */}
                   <div className="space-y-1 border-x border-slate-100">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Your Position</span>
-                    <span className="text-lg font-extrabold text-slate-900 block">
-                      {ticket.status === 'Completed' ? (
-                        <span className="text-emerald-600 text-sm">Checked In</span>
-                      ) : ticket.status === 'Called' ? (
-                        <span className="text-teal-600 text-sm animate-pulse">Your Turn</span>
+                    <span className="text-sm font-extrabold text-slate-900 block">
+                      {ticket.status === 'completed' ? (
+                        <span className="text-emerald-600">Checked In</span>
+                      ) : ticket.status === 'serving' ? (
+                        <span className="text-teal-600 animate-pulse font-bold">Your Turn</span>
                       ) : position === 1 ? (
                         'Next'
                       ) : (
@@ -233,8 +365,8 @@ const QueueStatus = () => {
                   {/* Estimated Wait */}
                   <div className="space-y-1">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Est. Wait</span>
-                    <span className="text-lg font-extrabold text-slate-900 block">
-                      {ticket.status === 'Completed' ? '0 mins' : `${currentWaitTime} mins`}
+                    <span className="text-sm font-extrabold text-slate-900 block">
+                      {ticket.status === 'completed' || ticket.status === 'serving' ? '0 mins' : `${estWaitTime} mins`}
                     </span>
                   </div>
 
@@ -244,22 +376,22 @@ const QueueStatus = () => {
                 <div className="border-t border-slate-100 pt-5 text-xs text-slate-600 space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="font-semibold text-slate-400 uppercase text-[10px]">Patient</span>
-                    <span className="font-bold text-slate-900">{ticket.patientName} (Age {ticket.patientAge})</span>
+                    <span className="font-bold text-slate-900">{meta.patientName} (Age {meta.patientAge})</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="font-semibold text-slate-400 uppercase text-[10px]">Phone</span>
-                    <span className="font-semibold text-slate-800">{ticket.patientPhone}</span>
+                    <span className="font-semibold text-slate-800">{meta.patientPhone}</span>
                   </div>
-                  {ticket.reason && (
+                  {meta.reason && (
                     <div className="flex justify-between items-start">
                       <span className="font-semibold text-slate-400 uppercase text-[10px] shrink-0 pt-0.5">Reason</span>
-                      <span className="font-semibold text-slate-800 text-right max-w-[70%] truncate">{ticket.reason}</span>
+                      <span className="font-semibold text-slate-800 text-right max-w-[75%] truncate">{meta.reason}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center">
                     <span className="font-semibold text-slate-400 uppercase text-[10px]">Booked At</span>
                     <span className="font-semibold text-slate-500">
-                      {new Date(ticket.bookingTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(ticket.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                 </div>
@@ -286,7 +418,7 @@ const QueueStatus = () => {
               </div>
             </motion.div>
 
-            {/* DEMO QUEUE SIMULATOR CONTROL PANEL */}
+            {/* REAL DATABASE QUEUE SIMULATOR CONTROL PANEL */}
             <motion.div 
               layout
               className="bg-white border-2 border-dashed border-amber-300 rounded-xl p-5 shadow-sm space-y-4"
@@ -298,28 +430,28 @@ const QueueStatus = () => {
                   </svg>
                 </span>
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider">Demo Queue Simulator</h3>
-                  <p className="text-[10px] text-slate-500 font-semibold">Test live queue status transitions locally.</p>
+                  <h3 className="text-xs font-bold uppercase tracking-wider">Database Queue Simulator</h3>
+                  <p className="text-[10px] text-slate-500 font-semibold font-mono">Department ID: {ticket.departmentId.substring(0,8)}...</p>
                 </div>
               </div>
 
+              {error && (
+                <div className="p-2.5 bg-red-50 border border-red-100 rounded text-[10px] text-red-700 font-semibold">
+                  {error}
+                </div>
+              )}
+
               <div className="text-[11px] text-slate-600 leading-relaxed font-semibold">
-                This panel simulates the clinic receptionist advancing the queue. Click **Advance Queue** to call the next token. Observe the position decreases and status updates to **Called** (pulsing teal alert) and then **Completed** (green alert) on this page in real time.
+                This panel executes operations directly against the MySQL queue controller. Clicking **Advance Queue** will call the next patient (setting status to `serving`) or mark the active patient as `completed`. Since the page polls every 3s, the changes are synchronized instantly.
               </div>
 
               <div className="flex gap-2">
                 <button
                   onClick={handleAdvanceQueue}
-                  disabled={ticket.status === 'Completed'}
-                  className="flex-grow bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  disabled={ticket.status === 'completed' || actionLoading}
+                  className="flex-grow bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center"
                 >
-                  Advance Queue
-                </button>
-                <button
-                  onClick={handleResetQueue}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold text-xs py-2 px-3 rounded transition-colors cursor-pointer"
-                >
-                  Reset Demo
+                  {actionLoading ? 'Advancing DB State...' : 'Advance Queue'}
                 </button>
               </div>
             </motion.div>
