@@ -1,7 +1,10 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { MOCK_HOSPITALS, MOCK_DEPARTMENTS_STATS, getTicketDetails } from '../api/mockData'
 
 const LandingPage = () => {
+  const navigate = useNavigate()
+
   // Booking Search Widget State
   const [searchHospital, setSearchHospital] = useState('')
   const [searchDept, setSearchDept] = useState('')
@@ -22,40 +25,14 @@ const LandingPage = () => {
   })
   const [contactSubmitted, setContactSubmitted] = useState(false)
 
-  // Demo Hospitals & Departments
-  const partnerHospitals = [
-    'Hope Medical Center (Demo)',
-    'Metro General Hospital (Demo)',
-    'Apex Health Clinic (Demo)',
-    'Valley Care Systems (Demo)'
-  ]
-
-  const departmentsList = [
-    'Cardiology',
-    'Pediatrics',
-    'Orthopedics',
-    'Radiology',
-    'OPD Pharmacy',
-    'General Medicine'
-  ]
+  // Demo Hospitals & Departments from mock data
+  const partnerHospitals = MOCK_HOSPITALS
+  const departmentsList = Object.keys(MOCK_DEPARTMENTS_STATS)
 
   const handleBookingSubmit = (e) => {
     e.preventDefault()
     if (!searchHospital || !searchDept) return
-    
-    // Generate a random ticket
-    const prefix = searchDept.substring(0, 3).toUpperCase()
-    const num = Math.floor(Math.random() * 900) + 100
-    const ticketId = `${prefix}-${num}`
-    
-    setBookedTicket({
-      ticketId,
-      hospital: searchHospital,
-      department: searchDept,
-      servingNumber: `${prefix}-${num - 4 > 100 ? num - 4 : 101}`,
-      estWait: '15 mins'
-    })
-    setBookingSuccess(true)
+    navigate(`/book-ticket?hospital=${searchHospital}&department=${searchDept}`)
   }
 
   const handleTrackerSubmit = (e) => {
@@ -66,20 +43,11 @@ const LandingPage = () => {
     if (!trackerInput) return
 
     const cleanInput = trackerInput.trim().toUpperCase()
-    // Simulated ticket database lookup
-    if (cleanInput.startsWith('CAR') || cleanInput.startsWith('PED') || cleanInput.startsWith('ORT') || cleanInput.startsWith('RAD')) {
-      const parts = cleanInput.split('-')
-      const num = parts[1] ? parseInt(parts[1]) : 112
-      setTrackedTicket({
-        ticketId: cleanInput,
-        hospital: 'Hope Medical Center (Demo)',
-        department: cleanInput.startsWith('CAR') ? 'Cardiology' : 'Pediatrics',
-        servingNumber: `${cleanInput.substring(0, 3)}-${num - 3 > 100 ? num - 3 : 102}`,
-        estWait: '10 minutes',
-        status: 'Arrive in 5 minutes'
-      })
+    const ticketDetails = getTicketDetails(cleanInput)
+    if (ticketDetails) {
+      navigate(`/queue-status/${cleanInput}`)
     } else {
-      setTrackerError('Ticket ID not found. Verify formatting (e.g. CARD-109).')
+      setTrackerError('Ticket ID not found. Verify formatting (e.g. CAR-102) or book a new ticket.')
     }
   }
 
@@ -120,10 +88,10 @@ const LandingPage = () => {
 
           {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
-            <a href="#" className="hover:text-blue-700 transition-colors">Home</a>
+            <Link to="/" className="hover:text-blue-700 transition-colors">Home</Link>
+            <Link to="/hospitals" className="hover:text-blue-700 transition-colors">Find Hospitals</Link>
+            <Link to="/book-ticket" className="hover:text-blue-700 transition-colors">Book Queue</Link>
             <a href="#why-smartqueue" className="hover:text-blue-700 transition-colors">Why SmartQueue</a>
-            <a href="#workflow" className="hover:text-blue-700 transition-colors">How It Works</a>
-            <a href="#ai-assistant" className="hover:text-blue-700 transition-colors">AI Assistant</a>
             <a href="#tracker" className="hover:text-blue-700 transition-colors">Track Status</a>
             <a href="#contact" className="hover:text-blue-700 transition-colors">Hospital Partnerships</a>
           </nav>
@@ -177,78 +145,51 @@ const LandingPage = () => {
             </div>
           </div>
 
-          {/* Hero Right: Booking Form Widget */}
           <div className="lg:col-span-5 bg-white text-slate-900 border border-slate-200 rounded-lg p-6 sm:p-8 shadow-xl w-full max-w-md mx-auto">
-            {bookingSuccess ? (
-              <div className="space-y-6 text-center py-4">
-                <div className="h-12 w-12 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center mx-auto text-emerald-600">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-slate-950">Queue Ticket Secured</h3>
-                  <p className="text-xs text-slate-500">{bookedTicket.hospital} — {bookedTicket.department}</p>
-                </div>
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
-                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Your Token Number</div>
-                  <div className="text-3xl font-black text-blue-700 tracking-tight">{bookedTicket.ticketId}</div>
-                  <div className="text-xs text-slate-600 font-medium pt-1">Currently Serving: <span className="font-bold text-slate-900">{bookedTicket.servingNumber}</span></div>
-                </div>
-                <div className="text-xs text-slate-500 font-medium">
-                  Use the live tracker below to follow your status. Arrive at least 5 minutes before your turn.
-                </div>
-                <button 
-                  onClick={() => setBookingSuccess(false)}
-                  className="btn-secondary w-full py-2 text-xs font-semibold"
-                >
-                  Book Another Ticket
-                </button>
+            <form onSubmit={handleBookingSubmit} className="space-y-5">
+              <div>
+                <h3 className="text-lg font-bold text-slate-950 tracking-tight">Book Queue Ticket</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Secure your digital placement at partner clinics.</p>
               </div>
-            ) : (
-              <form onSubmit={handleBookingSubmit} className="space-y-5">
+
+              <div className="space-y-4">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-950 tracking-tight">Book Queue Ticket</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Secure your digital placement at partner clinics.</p>
+                  <label htmlFor="hospital" className="input-label">Select Hospital</label>
+                  <select
+                    id="hospital"
+                    required
+                    value={searchHospital}
+                    onChange={(e) => setSearchHospital(e.target.value)}
+                    className="input-field cursor-pointer bg-white"
+                  >
+                    <option value="">-- Choose Partner Facility --</option>
+                    {partnerHospitals.map((h) => (
+                      <option key={h.id} value={h.id}>{h.name}</option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="hospital" className="input-label">Select Hospital</label>
-                    <select
-                      id="hospital"
-                      required
-                      value={searchHospital}
-                      onChange={(e) => setSearchHospital(e.target.value)}
-                      className="input-field cursor-pointer bg-white"
-                    >
-                      <option value="">-- Choose Partner Facility --</option>
-                      {partnerHospitals.map((h, i) => (
-                        <option key={i} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="department" className="input-label">Select Department</label>
-                    <select
-                      id="department"
-                      required
-                      value={searchDept}
-                      onChange={(e) => setSearchDept(e.target.value)}
-                      className="input-field cursor-pointer bg-white"
-                    >
-                      <option value="">-- Choose Medical Division --</option>
-                      {departmentsList.map((d, i) => (
-                        <option key={i} value={d}>{d}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div>
+                  <label htmlFor="department" className="input-label">Select Department</label>
+                  <select
+                    id="department"
+                    required
+                    value={searchDept}
+                    onChange={(e) => setSearchDept(e.target.value)}
+                    className="input-field cursor-pointer bg-white"
+                  >
+                    <option value="">-- Choose Medical Division --</option>
+                    {departmentsList.map((d, i) => (
+                      <option key={i} value={d}>{d}</option>
+                    ))}
+                  </select>
                 </div>
+              </div>
 
-                <button type="submit" className="btn-primary w-full py-3 text-sm font-bold">
-                  Generate Queue Ticket
-                </button>
-              </form>
-            )}
+              <button type="submit" className="btn-primary w-full py-3 text-sm font-bold">
+                Generate Queue Ticket
+              </button>
+            </form>
           </div>
         </div>
       </section>

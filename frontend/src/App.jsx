@@ -4,6 +4,9 @@ import LandingPage from './pages/LandingPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 import Dashboard from './pages/Dashboard.jsx'
+import Hospitals from './pages/Hospitals.jsx'
+import BookTicket from './pages/BookTicket.jsx'
+import QueueStatus from './pages/QueueStatus.jsx'
 import ProtectedRoute from './routes/ProtectedRoute.jsx'
 
 function App() {
@@ -20,6 +23,9 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/hospitals" element={<Hospitals />} />
+        <Route path="/book-ticket" element={<BookTicket />} />
+        <Route path="/queue-status/:ticketId" element={<QueueStatus />} />
         <Route path="/" element={<LandingPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
