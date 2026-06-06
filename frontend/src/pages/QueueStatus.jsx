@@ -11,6 +11,7 @@ import {
   callNextPatient,
   completeCurrentPatient 
 } from '../api/queues';
+import { register as apiRegister } from '../api/auth';
 
 const QueueStatus = () => {
   const { token, login } = useAuth();
@@ -51,7 +52,6 @@ const QueueStatus = () => {
       if (!token && !guestLoading) {
         setGuestLoading(true);
         try {
-          const { register: apiRegister } = await import('../api/auth');
           const guestEmail = `guest_${Date.now()}_${Math.floor(Math.random() * 1000)}@smartqueue.demo`;
           const guestPassword = 'smartqueue_guest_pass_123';
           const guestName = 'Outpatient Guest';

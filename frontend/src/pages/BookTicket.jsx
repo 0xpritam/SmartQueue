@@ -8,6 +8,7 @@ import { getHospitals } from '../api/hospital';
 import { bookTicket } from '../api/tickets';
 import { getWaitingTickets } from '../api/queues';
 import { recommendDepartment } from '../api/mockData';
+import { register as apiRegister } from '../api/auth';
 
 const BookTicket = () => {
   const { token, login } = useAuth();
@@ -48,7 +49,6 @@ const BookTicket = () => {
       if (!token && !guestLoading) {
         setGuestLoading(true);
         try {
-          const { register: apiRegister } = await import('../api/auth');
           const guestEmail = `guest_${Date.now()}_${Math.floor(Math.random() * 1000)}@smartqueue.demo`;
           const guestPassword = 'smartqueue_guest_pass_123';
           const guestName = 'Outpatient Guest';
@@ -74,10 +74,20 @@ const BookTicket = () => {
         if (res && res.success) {
           setHospitals(res.hospitals || []);
           
-          // Pre-select hospital from query param if provided
+          // Pre-select hospital and department from query param if provided
           const hospitalQuery = searchParams.get('hospital');
+          const departmentQuery = searchParams.get('department');
           if (hospitalQuery && res.hospitals.some(h => h.id === hospitalQuery)) {
             setSelectedHospitalId(hospitalQuery);
+            const selectedHosp = res.hospitals.find(h => h.id === hospitalQuery);
+            if (departmentQuery) {
+              const deptMatch = selectedHosp.departments.find(
+                d => d.id === departmentQuery || d.name.toLowerCase() === departmentQuery.toLowerCase()
+              );
+              if (deptMatch) {
+                setSelectedDepartment(deptMatch.id);
+              }
+            }
           }
         } else {
           setError(res.message || 'Failed to retrieve hospitals.');

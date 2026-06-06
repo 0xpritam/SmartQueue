@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { MOCK_HOSPITALS, MOCK_DEPARTMENTS_STATS, getTicketDetails } from '../api/mockData'
+import { getHospitals } from '../api/hospital'
 
 const LandingPage = () => {
   const navigate = useNavigate()
@@ -25,9 +25,31 @@ const LandingPage = () => {
   })
   const [contactSubmitted, setContactSubmitted] = useState(false)
 
-  // Demo Hospitals & Departments from mock data
-  const partnerHospitals = MOCK_HOSPITALS
-  const departmentsList = Object.keys(MOCK_DEPARTMENTS_STATS)
+  // Demo Hospitals & Departments from API
+  const [partnerHospitals, setPartnerHospitals] = useState([])
+  const [departmentsList, setDepartmentsList] = useState([])
+
+  useEffect(() => {
+    const loadHospitals = async () => {
+      try {
+        const res = await getHospitals()
+        if (res && res.success) {
+          setPartnerHospitals(res.hospitals || [])
+          // Collect all unique department names
+          const depts = new Set()
+          res.hospitals.forEach(h => {
+            h.departments.forEach(d => {
+              depts.add(d.name)
+            })
+          })
+          setDepartmentsList(Array.from(depts))
+        }
+      } catch (err) {
+        console.error('Failed to fetch hospitals on landing page:', err)
+      }
+    }
+    loadHospitals()
+  }, [])
 
   const handleBookingSubmit = (e) => {
     e.preventDefault()
@@ -42,13 +64,8 @@ const LandingPage = () => {
 
     if (!trackerInput) return
 
-    const cleanInput = trackerInput.trim().toUpperCase()
-    const ticketDetails = getTicketDetails(cleanInput)
-    if (ticketDetails) {
-      navigate(`/queue-status/${cleanInput}`)
-    } else {
-      setTrackerError('Ticket ID not found. Verify formatting (e.g. CAR-102) or book a new ticket.')
-    }
+    const cleanInput = trackerInput.trim()
+    navigate(`/queue-status/${cleanInput}`)
   }
 
   const handleInputChange = (e) => {
