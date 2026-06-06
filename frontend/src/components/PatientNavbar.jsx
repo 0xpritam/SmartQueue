@@ -1,10 +1,18 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const PatientNavbar = () => {
   const [navSearchInput, setNavSearchInput] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { token, logout } = useAuth();
+
+  const handleSignOut = () => {
+    logout();
+    navigate('/');
+    setMobileMenuOpen(false);
+  };
 
   const handleTrackSubmit = (e) => {
     e.preventDefault();
@@ -37,6 +45,9 @@ const PatientNavbar = () => {
           <Link to="/hospitals" className="hover:text-blue-700 transition-colors">Find Hospitals</Link>
           <Link to="/book-ticket" className="hover:text-blue-700 transition-colors">Book Queue</Link>
           <Link to="/ai-assistant" className="hover:text-blue-700 transition-colors">AI Assistant</Link>
+          {token && (
+            <Link to="/patient-dashboard" className="hover:text-blue-700 transition-colors">My Dashboard</Link>
+          )}
         </nav>
 
         {/* Quick Ticket Tracker Search Box & Staff button */}
@@ -56,16 +67,34 @@ const PatientNavbar = () => {
             </button>
           </form>
 
-          <Link to="/login" className="btn-secondary py-1.5 px-4 text-xs font-semibold">
-            Staff Portal
-          </Link>
+          {token ? (
+            <button 
+              onClick={handleSignOut} 
+              className="btn-secondary py-1.5 px-4 text-xs font-bold cursor-pointer"
+            >
+              Sign Out
+            </button>
+          ) : (
+            <Link to="/login" className="btn-secondary py-1.5 px-4 text-xs font-semibold">
+              Staff Portal
+            </Link>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
         <div className="md:hidden flex items-center gap-3">
-          <Link to="/login" className="btn-secondary py-1 px-3 text-[11px] font-semibold">
-            Staff Portal
-          </Link>
+          {token ? (
+            <button 
+              onClick={handleSignOut} 
+              className="btn-secondary py-1 px-3 text-[11px] font-bold cursor-pointer"
+            >
+              Sign Out
+            </button>
+          ) : (
+            <Link to="/login" className="btn-secondary py-1 px-3 text-[11px] font-semibold">
+              Staff Portal
+            </Link>
+          )}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="text-slate-600 hover:text-blue-700 focus:outline-none"
@@ -89,6 +118,9 @@ const PatientNavbar = () => {
             <Link to="/hospitals" onClick={() => setMobileMenuOpen(false)} className="hover:text-blue-700 py-1 transition-colors">Find Hospitals</Link>
             <Link to="/book-ticket" onClick={() => setMobileMenuOpen(false)} className="hover:text-blue-700 py-1 transition-colors">Book Queue</Link>
             <Link to="/ai-assistant" onClick={() => setMobileMenuOpen(false)} className="hover:text-blue-700 py-1 transition-colors">AI Assistant</Link>
+            {token && (
+              <Link to="/patient-dashboard" onClick={() => setMobileMenuOpen(false)} className="hover:text-blue-700 py-1 transition-colors">My Dashboard</Link>
+            )}
           </div>
           
           <form onSubmit={handleTrackSubmit} className="relative flex items-center">
