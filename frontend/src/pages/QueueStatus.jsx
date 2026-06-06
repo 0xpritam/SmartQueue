@@ -7,9 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { getTicket } from '../api/tickets';
 import { 
   getCurrentServing, 
-  getWaitingTickets,
-  callNextPatient,
-  completeCurrentPatient 
+  getWaitingTickets
 } from '../api/queues';
 import { register as apiRegister } from '../api/auth';
 
@@ -25,7 +23,6 @@ const QueueStatus = () => {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState(null);
-  const [actionLoading, setActionLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
 
   // Retrieve patient metadata stored in localStorage
@@ -143,27 +140,80 @@ const QueueStatus = () => {
     return { position: 1, peopleAhead: 0 };
   };
 
-  // ADVANCE QUEUE SIMULATOR (Modifies backend MySQL state directly)
-  const handleAdvanceQueue = async () => {
-    if (!ticket || !token) return;
-    setActionLoading(true);
-    setError(null);
-    try {
-      if (servingTicket) {
-        await completeCurrentPatient(ticket.departmentId);
-      } else if (waitingTickets.length > 0) {
-        await callNextPatient(ticket.departmentId);
-      } else {
-        setError('No active patients in queue to advance.');
-      }
-      await fetchQueueData(true);
-    } catch (err) {
-      console.error('Simulator action error:', err);
-      setError(err.response?.data?.message || 'Failed to simulate queue movement.');
-    } finally {
-      setActionLoading(false);
+  const getStepIndex = (status) => {
+    switch (status) {
+      case 'waiting':
+        return 1;
+      case 'serving':
+        return 2;
+      case 'completed':
+        return 3;
+      default:
+        return 0;
     }
   };
+
+  const getStepState = (index) => {
+    if (ticket?.status === 'cancelled') {
+      if (index === 0) return 'completed';
+      if (index === 1) return 'cancelled';
+      return 'pending';
+    }
+    
+    const currentStepIndex = getStepIndex(ticket?.status);
+    if (index < currentStepIndex) return 'completed';
+    if (index === currentStepIndex) {
+      return ticket?.status === 'completed' ? 'completed' : 'active';
+    }
+    return 'pending';
+  };
+
+  const timelineSteps = [
+    {
+      id: 'booked',
+      label: 'Booked',
+      desc: 'Ticket confirmed',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )
+    },
+    {
+      id: 'waiting',
+      label: ticket?.status === 'cancelled' ? 'Cancelled' : 'Waiting',
+      desc: ticket?.status === 'cancelled' ? 'Ticket cancelled' : 'Waiting in queue',
+      icon: ticket?.status === 'cancelled' ? (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      ) : (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      )
+    },
+    {
+      id: 'serving',
+      label: 'Serving',
+      desc: 'Doctor calling',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+        </svg>
+      )
+    },
+    {
+      id: 'completed',
+      label: 'Completed',
+      desc: 'Visit finished',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+        </svg>
+      )
+    }
+  ];
 
   const { position, peopleAhead } = calculateQueuePosition();
   const estWaitTime = ticket?.status === 'waiting' ? peopleAhead * 8 : 0;
@@ -418,41 +468,148 @@ const QueueStatus = () => {
               </div>
             </motion.div>
 
-            {/* REAL DATABASE QUEUE SIMULATOR CONTROL PANEL */}
+            {/* Live Status Timeline Card */}
             <motion.div 
               layout
-              className="bg-white border-2 border-dashed border-amber-300 rounded-xl p-5 shadow-sm space-y-4"
+              className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-md space-y-6"
             >
-              <div className="flex items-center gap-2 text-amber-800">
-                <span className="p-1 rounded bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center shrink-0">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </span>
-                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider">Database Queue Simulator</h3>
-                  <p className="text-[10px] text-slate-500 font-semibold font-mono">Department ID: {ticket.departmentId.substring(0,8)}...</p>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0">
+                    <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                    </svg>
+                  </span>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Queue Progress</h3>
+                    <p className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider">Patient Status Timeline</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+                  <span>Live Update</span>
                 </div>
               </div>
 
               {error && (
-                <div className="p-2.5 bg-red-50 border border-red-100 rounded text-[10px] text-red-700 font-semibold">
-                  {error}
+                <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-[10px] text-red-700 font-semibold flex items-center gap-2">
+                  <svg className="w-3.5 h-3.5 text-red-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span>{error}</span>
                 </div>
               )}
 
-              <div className="text-[11px] text-slate-600 leading-relaxed font-semibold">
-                This panel executes operations directly against the MySQL queue controller. Clicking **Advance Queue** will call the next patient (setting status to `serving`) or mark the active patient as `completed`. Since the page polls every 3s, the changes are synchronized instantly.
+              {/* Mobile Stepper Layout (Vertical) */}
+              <div className="md:hidden space-y-6">
+                {timelineSteps.map((step, idx) => {
+                  const state = getStepState(idx);
+                  const isLast = idx === timelineSteps.length - 1;
+                  
+                  return (
+                    <div key={step.id} className="flex gap-4 items-start relative">
+                      <div className="flex flex-col items-center shrink-0 relative">
+                        <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center z-10 transition-all duration-300 ${
+                          state === 'completed' ? 'bg-emerald-500 border-emerald-500 text-white' :
+                          state === 'active' ? 'bg-blue-600 border-blue-600 text-white ring-4 ring-blue-100 shadow-sm animate-pulse' :
+                          state === 'cancelled' ? 'bg-red-500 border-red-500 text-white ring-4 ring-red-100 shadow-sm' :
+                          'bg-white border-slate-200 text-slate-400'
+                        }`}>
+                          {state === 'completed' ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                          ) : step.icon}
+                        </div>
+                        {!isLast && (
+                          <div className="absolute top-10 bottom-[-24px] w-0.5 left-1/2 -translate-x-1/2 bg-slate-200 -z-10">
+                            <div 
+                              className={`w-full h-full transition-all duration-500 ${
+                                state === 'completed' ? 'bg-emerald-500' : 'bg-slate-200'
+                              }`}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="pt-1.5">
+                        <h4 className={`text-xs font-extrabold uppercase tracking-wider ${
+                          state === 'completed' ? 'text-slate-800' :
+                          state === 'active' ? 'text-blue-600' :
+                          state === 'cancelled' ? 'text-red-600 font-extrabold' :
+                          'text-slate-400'
+                        }`}>
+                          {step.label}
+                        </h4>
+                        <p className={`text-[10px] mt-0.5 leading-normal ${
+                          state === 'completed' ? 'text-slate-500' :
+                          state === 'active' ? 'text-blue-500 font-semibold' :
+                          state === 'cancelled' ? 'text-red-500 font-semibold' :
+                          'text-slate-400'
+                        }`}>
+                          {step.desc}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={handleAdvanceQueue}
-                  disabled={ticket.status === 'completed' || actionLoading}
-                  className="flex-grow bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center"
-                >
-                  {actionLoading ? 'Advancing DB State...' : 'Advance Queue'}
-                </button>
+              {/* Desktop Stepper Layout (Horizontal) */}
+              <div className="hidden md:flex justify-between items-start w-full">
+                {timelineSteps.map((step, idx) => {
+                  const state = getStepState(idx);
+                  const isLast = idx === timelineSteps.length - 1;
+                  
+                  return (
+                    <div key={step.id} className="flex-1 flex items-start relative">
+                      {!isLast && (
+                        <div className="absolute top-5 left-[calc(50%+20px)] right-[calc(-50%+20px)] h-0.5 bg-slate-200 -z-10">
+                          <div 
+                            className={`h-full transition-all duration-500 ${
+                              state === 'completed' ? 'bg-emerald-500' : 'bg-slate-200'
+                            }`}
+                          />
+                        </div>
+                      )}
+                      
+                      <div className="flex flex-col items-center text-center w-full">
+                        <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center z-10 transition-all duration-300 ${
+                          state === 'completed' ? 'bg-emerald-500 border-emerald-500 text-white' :
+                          state === 'active' ? 'bg-blue-600 border-blue-600 text-white ring-4 ring-blue-100 shadow-sm animate-pulse' :
+                          state === 'cancelled' ? 'bg-red-500 border-red-500 text-white ring-4 ring-red-100 shadow-sm' :
+                          'bg-white border-slate-200 text-slate-400'
+                        }`}>
+                          {state === 'completed' ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                          ) : step.icon}
+                        </div>
+                        
+                        <div className="mt-3 px-2">
+                          <h4 className={`text-[10px] font-extrabold uppercase tracking-wider ${
+                            state === 'completed' ? 'text-slate-800' :
+                            state === 'active' ? 'text-blue-600 font-extrabold' :
+                            state === 'cancelled' ? 'text-red-600 font-extrabold' :
+                            'text-slate-400'
+                          }`}>
+                            {step.label}
+                          </h4>
+                          <p className={`text-[9px] mt-1 leading-normal max-w-[110px] mx-auto ${
+                            state === 'completed' ? 'text-slate-500' :
+                            state === 'active' ? 'text-blue-500 font-semibold' :
+                            state === 'cancelled' ? 'text-red-500 font-semibold' :
+                            'text-slate-400'
+                          }`}>
+                            {step.desc}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </motion.div>
 
