@@ -17,3 +17,16 @@ export const getMyTickets = async () => {
   const res = await api.get('/tickets/my');
   return res.data;
 };
+
+// Fetch all tickets in the system (for staff dashboard)
+export const getAllTickets = async (params = {}) => {
+  const res = await api.get('/tickets', { params });
+  return res.data;
+};
+
+// Update ticket status (for staff dashboard)
+export const updateTicketStatus = async (ticketId, status) => {
+  const res = await api.patch(`/tickets/${ticketId}/status`, { status });
+  return res.data;
+};
+
