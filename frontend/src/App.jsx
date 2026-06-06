@@ -3,7 +3,7 @@ import './App.css'
 import LandingPage from './pages/LandingPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
-import Dashboard from './pages/Dashboard.jsx'
+import StaffDashboard from './pages/StaffDashboard.jsx'
 import Hospitals from './pages/Hospitals.jsx'
 import BookTicket from './pages/BookTicket.jsx'
 import QueueStatus from './pages/QueueStatus.jsx'
@@ -20,10 +20,11 @@ function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <StaffDashboard />
             </ProtectedRoute>
           }
         />
+
         <Route path="/hospitals" element={<Hospitals />} />
         <Route path="/book-ticket" element={<BookTicket />} />
         <Route path="/queue-status/:ticketId" element={<QueueStatus />} />
