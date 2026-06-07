@@ -8,6 +8,7 @@ const ticketRoutes = require('./routes/ticket.routes');
 const queueRoutes = require('./routes/queue.routes');
 const hospitalRoutes = require('./routes/hospital.routes');
 const departmentRoutes = require('./routes/department.routes');
+const userRoutes = require('./routes/user.routes');
 
 // Global Middleware
 app.use(cors());
@@ -20,6 +21,7 @@ app.use('/api/tickets', ticketRoutes);
 app.use('/api/queues', queueRoutes);
 app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/departments', departmentRoutes);
+app.use('/api/users', userRoutes);
 
 // Health Check
 app.get('/api/health', (req, res) => {

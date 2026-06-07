@@ -8,9 +8,10 @@ import { getMyTickets } from '../api/tickets';
 import { getWaitingTickets } from '../api/queues';
 import { getDepartments } from '../api/departments';
 import { useSocket } from '../context/SocketContext';
+import { updateProfile } from '../api/user';
 
 const PatientDashboard = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, updateUser } = useAuth();
   const navigate = useNavigate();
 
   // Data State
@@ -22,13 +23,16 @@ const PatientDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [modalError, setModalError] = useState(null);
+  const [toast, setToast] = useState(null); // { message, type }
+
   const [profileForm, setProfileForm] = useState({
-    name: currentUser?.name || 'Patient User',
-    email: currentUser?.email || 'patient@smartqueue.demo',
-    phone: '+1 (555) 000-1234',
-    age: '—'
+    name: currentUser?.name || '',
+    email: currentUser?.email || '',
+    phone: currentUser?.phone || '',
+    age: currentUser?.age !== null && currentUser?.age !== undefined ? currentUser.age : ''
   });
-  const [profileSuccessMsg, setProfileSuccessMsg] = useState(null);
 
   const fetchPatientData = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
@@ -43,23 +47,7 @@ const PatientDashboard = () => {
       const userTickets = ticketsRes && ticketsRes.success ? ticketsRes.tickets : [];
       setTickets(userTickets);
 
-      // 3. Extract phone and age from the most recent ticket metadata
-      for (const t of userTickets) {
-        const stored = localStorage.getItem(`smartqueue_meta_${t.id}`);
-        if (stored) {
-          const meta = JSON.parse(stored);
-          if (meta.patientPhone) {
-            setProfileForm(prev => ({
-              ...prev,
-              phone: meta.patientPhone,
-              age: meta.patientAge
-            }));
-            break;
-          }
-        }
-      }
-
-      // 4. Fetch waiting queues for active departments to calculate position & wait times
+      // 3. Fetch waiting queues for active departments to calculate position & wait times
       const activeWaitingTickets = userTickets.filter(t => t.status === 'waiting');
       const queuesData = {};
       for (const t of activeWaitingTickets) {
@@ -123,11 +111,12 @@ const PatientDashboard = () => {
   // Sync profile details if currentUser properties update
   useEffect(() => {
     if (currentUser) {
-      setProfileForm(prev => ({
-        ...prev,
-        name: currentUser.name,
-        email: currentUser.email
-      }));
+      setProfileForm({
+        name: currentUser.name || '',
+        email: currentUser.email || '',
+        phone: currentUser.phone || '',
+        age: currentUser.age !== null && currentUser.age !== undefined ? currentUser.age : ''
+      });
     }
   }, [currentUser]);
 
@@ -162,11 +151,67 @@ const PatientDashboard = () => {
 
   const stats = getDashboardStats();
 
-  const handleProfileSave = (e) => {
+  const handleOpenEditModal = () => {
+    setProfileForm({
+      name: currentUser?.name || '',
+      email: currentUser?.email || '',
+      phone: currentUser?.phone || '',
+      age: currentUser?.age !== null && currentUser?.age !== undefined ? currentUser.age : ''
+    });
+    setModalError(null);
+    setIsEditingProfile(true);
+  };
+
+  const handleProfileSave = async (e) => {
     e.preventDefault();
-    setProfileSuccessMsg('Profile details updated successfully (UI simulation only).');
-    setIsEditingProfile(false);
-    setTimeout(() => setProfileSuccessMsg(null), 4000);
+    setSaveLoading(true);
+    setModalError(null);
+
+    // Front-end validations
+    if (!profileForm.name.trim() || !profileForm.email.trim()) {
+      setModalError('Name and email are required');
+      setSaveLoading(false);
+      return;
+    }
+
+    const parsedAge = parseInt(profileForm.age, 10);
+    if (profileForm.age !== '' && profileForm.age !== null && profileForm.age !== undefined && (isNaN(parsedAge) || parsedAge <= 0)) {
+      setModalError('Age must be greater than 0');
+      setSaveLoading(false);
+      return;
+    }
+
+    try {
+      const res = await updateProfile({
+        name: profileForm.name,
+        email: profileForm.email,
+        phone: profileForm.phone,
+        age: (profileForm.age !== '' && profileForm.age !== null && profileForm.age !== undefined) ? parsedAge : null
+      });
+
+      if (res && res.success) {
+        // Update auth state globally
+        updateUser(res.user);
+        
+        // Close modal
+        setIsEditingProfile(false);
+
+        // Show floating success toast
+        setToast({ message: 'Profile details updated successfully.', type: 'success' });
+        setTimeout(() => setToast(null), 4000);
+
+        // Refresh dashboard data automatically
+        await fetchPatientData(true);
+      } else {
+        setModalError(res.message || 'Failed to update profile.');
+      }
+    } catch (err) {
+      console.error('Update profile submit error:', err);
+      const errMsg = err.response?.data?.message || 'An error occurred while updating profile.';
+      setModalError(errMsg);
+    } finally {
+      setSaveLoading(false);
+    }
   };
 
   const getTicketMetadata = (ticketId) => {
@@ -276,14 +321,7 @@ const PatientDashboard = () => {
           </div>
         )}
 
-        {profileSuccessMsg && (
-          <div className="p-3.5 bg-green-50 border border-green-200 rounded-lg flex gap-3 text-xs text-green-700 font-semibold animate-fadeIn">
-            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div>{profileSuccessMsg}</div>
-          </div>
-        )}
+
 
         {/* Metrics Row */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -492,118 +530,37 @@ const PatientDashboard = () => {
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
               <div className="text-center pb-4 border-b border-slate-100 relative">
                 <div className="h-16 w-16 rounded-full bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center text-xl font-extrabold mx-auto shadow-sm">
-                  {profileForm.name.substring(0, 2).toUpperCase()}
+                  {(profileForm.name || 'P').substring(0, 2).toUpperCase()}
                 </div>
-                <h3 className="text-sm font-bold text-slate-950 mt-3">{profileForm.name}</h3>
+                <h3 className="text-sm font-bold text-slate-950 mt-3">{profileForm.name || 'Patient User'}</h3>
                 <span className="text-[10px] text-teal-500 font-bold block uppercase tracking-wider mt-0.5">Registered Patient</span>
               </div>
 
-              <AnimatePresence mode="wait">
-                {isEditingProfile ? (
-                  <motion.form 
-                    key="edit"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    onSubmit={handleProfileSave}
-                    className="space-y-4 overflow-hidden"
-                  >
-                    <div>
-                      <label htmlFor="editName" className="input-label">Full Name</label>
-                      <input
-                        id="editName"
-                        type="text"
-                        required
-                        value={profileForm.name}
-                        onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
-                        className="input-field"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="editEmail" className="input-label">Email Address</label>
-                      <input
-                        id="editEmail"
-                        type="email"
-                        required
-                        value={profileForm.email}
-                        onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
-                        className="input-field"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="editPhone" className="input-label">Phone Number</label>
-                      <input
-                        id="editPhone"
-                        type="tel"
-                        required
-                        value={profileForm.phone}
-                        onChange={(e) => setProfileForm(prev => ({ ...prev, phone: e.target.value }))}
-                        className="input-field"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="editAge" className="input-label">Age</label>
-                      <input
-                        id="editAge"
-                        type="number"
-                        min="1"
-                        max="120"
-                        required
-                        value={profileForm.age}
-                        onChange={(e) => setProfileForm(prev => ({ ...prev, age: e.target.value }))}
-                        className="input-field"
-                      />
-                    </div>
+              <div className="space-y-4 text-xs font-semibold text-slate-700">
+                <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                  <span className="text-slate-400">Email:</span>
+                  <span className="text-slate-900 truncate max-w-[180px]">{profileForm.email || '—'}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                  <span className="text-slate-400">Phone:</span>
+                  <span className="text-slate-900">{profileForm.phone || '—'}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                  <span className="text-slate-400">Patient Age:</span>
+                  <span className="text-slate-900">{profileForm.age ? `${profileForm.age} yrs` : '—'}</span>
+                </div>
 
-                    <div className="flex gap-2 pt-2">
-                      <button
-                        type="submit"
-                        className="btn-primary flex-grow py-2 text-xs font-bold cursor-pointer"
-                      >
-                        Save
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsEditingProfile(false)}
-                        className="btn-secondary py-2 text-xs font-semibold cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </motion.form>
-                ) : (
-                  <motion.div 
-                    key="view"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="space-y-4 text-xs font-semibold text-slate-700"
-                  >
-                    <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                      <span className="text-slate-400">Email:</span>
-                      <span className="text-slate-900 truncate max-w-[180px]">{profileForm.email}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                      <span className="text-slate-400">Phone:</span>
-                      <span className="text-slate-900">{profileForm.phone}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                      <span className="text-slate-400">Patient Age:</span>
-                      <span className="text-slate-900">{profileForm.age} yrs</span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingProfile(true)}
-                      className="w-full btn-secondary py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.082a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                      </svg>
-                      Edit Profile Details
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                <button
+                  type="button"
+                  onClick={handleOpenEditModal}
+                  className="w-full btn-secondary py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.082a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                  </svg>
+                  Edit Profile Details
+                </button>
+              </div>
             </div>
 
           </div>
@@ -611,6 +568,165 @@ const PatientDashboard = () => {
         </div>
 
       </main>
+
+      {/* Edit Profile Modal */}
+      <AnimatePresence>
+        {isEditingProfile && (
+          <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 animate-fadeIn">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                if (!saveLoading) setIsEditingProfile(false);
+              }}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 overflow-hidden z-10 space-y-4"
+            >
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                <h3 className="text-base font-bold text-slate-900">Edit Profile Details</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!saveLoading) setIsEditingProfile(false);
+                  }}
+                  className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                  disabled={saveLoading}
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {modalError && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-xs text-red-700 font-semibold flex items-center gap-2 animate-fadeIn">
+                  <svg className="h-4 w-4 text-red-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>{modalError}</div>
+                </div>
+              )}
+
+              <form onSubmit={handleProfileSave} className="space-y-4">
+                <div>
+                  <label htmlFor="modalName" className="input-label">Full Name</label>
+                  <input
+                    id="modalName"
+                    type="text"
+                    required
+                    value={profileForm.name}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="input-field font-semibold text-slate-800"
+                    disabled={saveLoading}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="modalEmail" className="input-label">Email Address</label>
+                  <input
+                    id="modalEmail"
+                    type="email"
+                    required
+                    value={profileForm.email}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
+                    className="input-field font-semibold text-slate-800"
+                    disabled={saveLoading}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="modalPhone" className="input-label">Phone Number</label>
+                  <input
+                    id="modalPhone"
+                    type="tel"
+                    placeholder="e.g. +1 (555) 000-1234"
+                    value={profileForm.phone}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, phone: e.target.value }))}
+                    className="input-field font-semibold text-slate-800"
+                    disabled={saveLoading}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="modalAge" className="input-label">Age</label>
+                  <input
+                    id="modalAge"
+                    type="number"
+                    min="1"
+                    max="120"
+                    placeholder="e.g. 28"
+                    value={profileForm.age}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, age: e.target.value }))}
+                    className="input-field font-semibold text-slate-800"
+                    disabled={saveLoading}
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingProfile(false)}
+                    className="btn-secondary flex-1 text-xs font-bold"
+                    disabled={saveLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary flex-1 text-xs font-bold gap-2"
+                    disabled={saveLoading}
+                  >
+                    {saveLoading ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className={`fixed bottom-6 right-6 z-50 p-4 rounded-xl shadow-lg border flex items-center gap-3 max-w-sm ${
+              toast.type === 'error'
+                ? 'bg-red-50 border-red-200 text-red-800'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            }`}
+          >
+            {toast.type === 'error' ? (
+              <svg className="h-5 w-5 text-red-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+            <div className="text-xs font-semibold">{toast.message}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <PatientFooter />
     </div>

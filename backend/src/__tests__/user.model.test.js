@@ -119,6 +119,38 @@ describe('User model definition', () => {
     });
   });
 
+  describe('phone field', () => {
+    it('is STRING type', () => {
+      const attr = User.rawAttributes.phone;
+      expect(attr.type instanceof DataTypes.STRING).toBe(true);
+    });
+
+    it('allows null', () => {
+      expect(User.rawAttributes.phone.allowNull).not.toBe(false);
+    });
+
+    it('is unique', () => {
+      expect(User.rawAttributes.phone.unique).toBe(true);
+    });
+  });
+
+  describe('age field', () => {
+    it('is INTEGER type', () => {
+      const attr = User.rawAttributes.age;
+      expect(attr.type instanceof DataTypes.INTEGER).toBe(true);
+    });
+
+    it('allows null', () => {
+      expect(User.rawAttributes.age.allowNull).not.toBe(false);
+    });
+
+    it('has min validator with value 1', () => {
+      const validators = User.rawAttributes.age.validate;
+      expect(validators.min).toBeDefined();
+      expect(validators.min.args).toEqual([1]);
+    });
+  });
+
   describe('timestamps', () => {
     it('has createdAt and updatedAt', () => {
       expect(User.rawAttributes.createdAt).toBeDefined();

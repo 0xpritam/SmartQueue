@@ -46,6 +46,8 @@ if (!name || !email || !password) {
         id: user.id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
+        age: user.age,
       },
     });
   } catch (error) {
@@ -106,6 +108,8 @@ const login = async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
+        age: user.age,
       },
     });
 

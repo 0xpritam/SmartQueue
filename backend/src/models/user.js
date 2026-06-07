@@ -35,6 +35,23 @@ module.exports = (sequelize) => {
         },
       },
 
+      phone: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        unique: true,
+      },
+
+      age: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        validate: {
+          min: {
+            args: [1],
+            msg: 'Age must be greater than 0',
+          },
+        },
+      },
+
       password: {
         type: DataTypes.STRING,
         allowNull: false,
