@@ -174,6 +174,16 @@ const PatientDashboard = () => {
       return;
     }
 
+    const trimmedPhone = profileForm.phone ? profileForm.phone.trim() : '';
+    if (trimmedPhone !== '') {
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(trimmedPhone)) {
+        setModalError('Phone number must be exactly 10 digits and contain only numbers.');
+        setSaveLoading(false);
+        return;
+      }
+    }
+
     const parsedAge = parseInt(profileForm.age, 10);
     if (profileForm.age !== '' && profileForm.age !== null && profileForm.age !== undefined && (isNaN(parsedAge) || parsedAge <= 0)) {
       setModalError('Age must be greater than 0');
@@ -183,9 +193,9 @@ const PatientDashboard = () => {
 
     try {
       const res = await updateProfile({
-        name: profileForm.name,
-        email: profileForm.email,
-        phone: profileForm.phone,
+        name: profileForm.name.trim(),
+        email: profileForm.email.trim(),
+        phone: trimmedPhone || null,
         age: (profileForm.age !== '' && profileForm.age !== null && profileForm.age !== undefined) ? parsedAge : null
       });
 

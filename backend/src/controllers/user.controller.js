@@ -44,9 +44,17 @@ const updateProfile = async (req, res) => {
       });
     }
 
-    // 4. Verify phone uniqueness excluding current user
+    // 4. Verify phone format and uniqueness excluding current user
     const normalizedPhone = (phone && phone.trim()) ? phone.trim() : null;
     if (normalizedPhone) {
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(normalizedPhone)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number must be exactly 10 digits and contain only numbers.',
+        });
+      }
+
       const existingPhoneUser = await User.findOne({
         where: {
           phone: normalizedPhone,

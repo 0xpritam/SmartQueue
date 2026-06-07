@@ -27,7 +27,6 @@ module.exports = (sequelize) => {
       email: {
         type: DataTypes.STRING,
         allowNull: false,
-        unique: true,
         validate: {
           isEmail: {
             msg: 'Please provide a valid email',
@@ -38,7 +37,6 @@ module.exports = (sequelize) => {
       phone: {
         type: DataTypes.STRING,
         allowNull: true,
-        unique: true,
       },
 
       age: {
@@ -73,6 +71,18 @@ module.exports = (sequelize) => {
       modelName: 'User',
       tableName: 'users',
       timestamps: true,
+      indexes: [
+        {
+          unique: true,
+          fields: ['email'],
+          name: 'email'
+        },
+        {
+          unique: true,
+          fields: ['phone'],
+          name: 'phone'
+        }
+      ]
     }
   );
 

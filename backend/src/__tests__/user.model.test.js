@@ -77,7 +77,9 @@ describe('User model definition', () => {
     });
 
     it('is unique', () => {
-      expect(User.rawAttributes.email.unique).toBe(true);
+      const emailIndex = User.options.indexes.find(idx => idx.fields.includes('email'));
+      expect(emailIndex).toBeDefined();
+      expect(emailIndex.unique).toBe(true);
     });
 
     it('has isEmail validator', () => {
@@ -130,7 +132,9 @@ describe('User model definition', () => {
     });
 
     it('is unique', () => {
-      expect(User.rawAttributes.phone.unique).toBe(true);
+      const phoneIndex = User.options.indexes.find(idx => idx.fields.includes('phone'));
+      expect(phoneIndex).toBeDefined();
+      expect(phoneIndex.unique).toBe(true);
     });
   });
 

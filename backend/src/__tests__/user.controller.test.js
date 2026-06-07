@@ -72,6 +72,42 @@ describe('updateProfile', () => {
     );
   });
 
+  it('returns 400 when phone number is invalid (too short)', async () => {
+    const { req, res } = mockReqRes({ name: 'Test', email: 'a@b.com', phone: '44', age: 25 });
+    await updateProfile(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('Phone number must be exactly 10 digits') })
+    );
+  });
+
+  it('returns 400 when phone number is invalid (contains non-numeric characters)', async () => {
+    const { req, res } = mockReqRes({ name: 'Test', email: 'a@b.com', phone: 'abc123', age: 25 });
+    await updateProfile(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('Phone number must be exactly 10 digits') })
+    );
+  });
+
+  it('returns 400 when phone number is invalid (too long)', async () => {
+    const { req, res } = mockReqRes({ name: 'Test', email: 'a@b.com', phone: '123456879521365', age: 25 });
+    await updateProfile(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('Phone number must be exactly 10 digits') })
+    );
+  });
+
+  it('returns 400 when phone number contains leading plus sign', async () => {
+    const { req, res } = mockReqRes({ name: 'Test', email: 'a@b.com', phone: '+9876543210', age: 25 });
+    await updateProfile(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('Phone number must be exactly 10 digits') })
+    );
+  });
+
   it('updates the profile successfully and returns updated user details with immutability enforcement', async () => {
     User.findOne.mockResolvedValue(null); // No duplicate email or phone
     const mockUserRecord = {
