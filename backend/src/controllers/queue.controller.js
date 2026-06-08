@@ -1,4 +1,5 @@
 const { Ticket } = require('../models');
+const { createNotification, handleQueuePositionChanges } = require('../utils/notification');
 
 const getCurrentTicket = async (req, res) => {
   try {
@@ -67,6 +68,12 @@ const callNextPatient = async (req, res) => {
       });
     }
 
+    // Fetch wait-listed tickets before the change to compute queue updates
+    const ticketsBefore = await Ticket.findAll({
+      where: { departmentId, status: 'waiting' },
+      order: [['createdAt', 'ASC']],
+    });
+
     ticket.status = 'serving';
     await ticket.save();
 
@@ -75,6 +82,23 @@ const callNextPatient = async (req, res) => {
     if (io) {
       io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
       io.to(`department_${departmentId}`).emit('queue_updated', { departmentId });
+
+      // Run queue shift calculation asynchronously
+      Ticket.findAll({
+        where: { departmentId, status: 'waiting' },
+        order: [['createdAt', 'ASC']],
+      }).then((ticketsAfter) => {
+        handleQueuePositionChanges(io, departmentId, ticketsBefore, ticketsAfter);
+      }).catch((err) => console.error('[NOTIFICATION ERROR] Fetching ticketsAfter failed:', err));
+
+      // Asynchronously send status change notification to this user
+      createNotification(io, {
+        userId: ticket.userId,
+        ticketId: ticket.id,
+        title: 'Now Serving',
+        message: 'You are now being served.',
+        type: 'serving',
+      }).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
     }
 
     return res.status(200).json({
@@ -114,6 +138,15 @@ const completeCurrentPatient = async (req, res) => {
     if (io) {
       io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
       io.to(`department_${departmentId}`).emit('queue_updated', { departmentId });
+
+      // Asynchronously send status change notification to this user
+      createNotification(io, {
+        userId: ticket.userId,
+        ticketId: ticket.id,
+        title: 'Visit Completed',
+        message: 'Your visit has been completed.',
+        type: 'completed',
+      }).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
     }
 
     return res.status(200).json({

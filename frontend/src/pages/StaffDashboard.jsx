@@ -12,6 +12,7 @@ import {
 } from '../api/queues';
 import QueueStatsCards from '../components/QueueStatsCards';
 import QueueTable from '../components/QueueTable';
+import NotificationCenter from '../components/NotificationCenter';
 
 const StaffDashboard = () => {
   const { currentUser, logout } = useAuth();
@@ -260,6 +261,10 @@ const StaffDashboard = () => {
               <span className="text-xs font-bold block text-slate-200">{currentUser?.name || 'Staff User'}</span>
               <span className="text-[10px] text-teal-400 font-bold block uppercase tracking-wide">Operations Staff</span>
             </div>
+            
+            {/* Notification Center Dropdown */}
+            <NotificationCenter isDarkMode={true} />
+
             <button 
               onClick={handleLogout}
               className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold py-1.5 px-3 rounded-md transition-colors cursor-pointer flex items-center gap-1.5"

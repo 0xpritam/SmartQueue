@@ -5,6 +5,7 @@ console.log("DEBUG -> JWT_SECRET VALUE IS:", process.env.JWT_SECRET);
 const app = require('./src/app');
 const sequelize = require('./src/config/database');
 require('./src/models');
+const jwt = require('jsonwebtoken');
 
 const http = require('http');
 const { Server } = require('socket.io');
@@ -21,6 +22,19 @@ app.set('io', io);
 
 io.on('connection', (socket) => {
   console.log(`[SOCKET] Client connected: ${socket.id}`);
+
+  // Authenticate socket using token and join user-specific room user:${userId}
+  const token = socket.handshake.auth?.token;
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      socket.userId = decoded.id;
+      socket.join(`user:${decoded.id}`);
+      console.log(`[SOCKET] Securely joined user ${decoded.id} to room user:${decoded.id}`);
+    } catch (err) {
+      console.error('[SOCKET] Token verification on connection failed:', err.message);
+    }
+  }
 
   socket.on('join_department', (departmentId) => {
     socket.join(`department_${departmentId}`);

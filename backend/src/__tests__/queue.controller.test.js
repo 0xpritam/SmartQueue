@@ -129,6 +129,7 @@ describe('Queue controller', () => {
         save: jest.fn().mockResolvedValue(true),
       };
       Ticket.findOne.mockResolvedValue(ticket);
+      Ticket.findAll.mockResolvedValue([ticket]);
 
       const { req, res } = mockReqRes({ departmentId: 'dept-1' });
       await callNextPatient(req, res);

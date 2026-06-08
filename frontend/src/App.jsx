@@ -10,6 +10,7 @@ import BookTicket from './pages/BookTicket.jsx'
 import QueueStatus from './pages/QueueStatus.jsx'
 import AIAssistant from './pages/AIAssistant.jsx'
 import ProtectedRoute from './routes/ProtectedRoute.jsx'
+import Notifications from './pages/Notifications.jsx'
 
 function App() {
   return (
@@ -30,6 +31,14 @@ function App() {
           element={
             <ProtectedRoute>
               <PatientDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <Notifications />
             </ProtectedRoute>
           }
         />

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationCenter from './NotificationCenter';
 
 const PatientNavbar = () => {
   const [navSearchInput, setNavSearchInput] = useState('');
@@ -67,6 +68,10 @@ const PatientNavbar = () => {
             </button>
           </form>
 
+          {token && (
+            <NotificationCenter />
+          )}
+
           {token ? (
             <button 
               onClick={handleSignOut} 
@@ -83,6 +88,9 @@ const PatientNavbar = () => {
 
         {/* Mobile Menu Button */}
         <div className="md:hidden flex items-center gap-3">
+          {token && (
+            <NotificationCenter />
+          )}
           {token ? (
             <button 
               onClick={handleSignOut} 

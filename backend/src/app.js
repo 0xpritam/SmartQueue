@@ -9,6 +9,7 @@ const queueRoutes = require('./routes/queue.routes');
 const hospitalRoutes = require('./routes/hospital.routes');
 const departmentRoutes = require('./routes/department.routes');
 const userRoutes = require('./routes/user.routes');
+const notificationRoutes = require('./routes/notification.routes');
 
 // Global Middleware
 app.use(cors());
@@ -22,6 +23,7 @@ app.use('/api/queues', queueRoutes);
 app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health Check
 app.get('/api/health', (req, res) => {

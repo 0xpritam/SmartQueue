@@ -1,5 +1,6 @@
 const { Ticket, Department } = require('../models');
 const { v4: uuidv4 } = require('uuid');
+const { createNotification, handleQueuePositionChanges, getCleanTicketNumber } = require('../utils/notification');
 
 // ==========================================
 // GENERATE TICKET
@@ -38,6 +39,15 @@ const generateTicket = async (req, res) => {
     const io = req.app?.get?.('io');
     if (io) {
       io.to(`department_${departmentId}`).emit('queue_updated', { departmentId });
+
+      // Asynchronously trigger booking notification
+      createNotification(io, {
+        userId: req.user.id,
+        ticketId: ticket.id,
+        title: 'Ticket Booked',
+        message: `Your ticket ${getCleanTicketNumber(ticket)} has been booked successfully.`,
+        type: 'queue_update',
+      }).catch((err) => console.error('[NOTIFICATION ERROR] Booked notification failed:', err));
     }
 
     return res.status(201).json({
@@ -158,6 +168,17 @@ const updateTicketStatus = async (req, res) => {
       });
     }
 
+    const oldStatus = ticket.status;
+    const oldDepartmentId = ticket.departmentId;
+
+    let ticketsBefore = [];
+    if (oldStatus === 'waiting') {
+      ticketsBefore = await Ticket.findAll({
+        where: { departmentId: oldDepartmentId, status: 'waiting' },
+        order: [['createdAt', 'ASC']],
+      });
+    }
+
     ticket.status = status;
     await ticket.save();
 
@@ -166,6 +187,43 @@ const updateTicketStatus = async (req, res) => {
     if (io) {
       io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
       io.to(`department_${ticket.departmentId}`).emit('queue_updated', { departmentId: ticket.departmentId });
+
+      // Handle queue shifts asynchronously
+      if (oldStatus === 'waiting' && status !== 'waiting') {
+        Ticket.findAll({
+          where: { departmentId: oldDepartmentId, status: 'waiting' },
+          order: [['createdAt', 'ASC']],
+        }).then((ticketsAfter) => {
+          handleQueuePositionChanges(io, oldDepartmentId, ticketsBefore, ticketsAfter);
+        }).catch((err) => console.error('[NOTIFICATION ERROR] Fetching ticketsAfter failed:', err));
+      }
+
+      // Send status change notification asynchronously
+      if (status === 'serving') {
+        createNotification(io, {
+          userId: ticket.userId,
+          ticketId: ticket.id,
+          title: 'Now Serving',
+          message: 'You are now being served.',
+          type: 'serving',
+        }).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
+      } else if (status === 'completed') {
+        createNotification(io, {
+          userId: ticket.userId,
+          ticketId: ticket.id,
+          title: 'Visit Completed',
+          message: 'Your visit has been completed.',
+          type: 'completed',
+        }).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
+      } else if (status === 'cancelled') {
+        createNotification(io, {
+          userId: ticket.userId,
+          ticketId: ticket.id,
+          title: 'Ticket Cancelled',
+          message: `Your ticket ${getCleanTicketNumber(ticket)} has been cancelled.`,
+          type: 'queue_update',
+        }).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
+      }
     }
 
     return res.status(200).json({
