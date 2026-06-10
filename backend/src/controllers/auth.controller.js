@@ -51,10 +51,26 @@ if (!name || !email || !password) {
       },
     });
   } catch (error) {
+    if (error.name === 'SequelizeValidationError') {
+      const messages = error.errors.map((e) => e.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: messages,
+      });
+    }
+
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(409).json({
+        success: false,
+        message: 'Email already registered',
+      });
+    }
+
     console.error('Register error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: 'An unexpected error occurred during registration',
     });
   }
 };
@@ -93,6 +109,14 @@ const login = async (req, res) => {
     }
 
     // 4. Generate JWT token
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not configured');
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error',
+      });
+    }
+
     const token = jwt.sign(
       { id: user.id, email: user.email },
       process.env.JWT_SECRET,

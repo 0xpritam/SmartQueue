@@ -91,7 +91,7 @@ describe('register', () => {
     await register(req, res);
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: false, message: 'Server error' })
+      expect.objectContaining({ success: false, message: 'An unexpected error occurred during registration' })
     );
   });
 });
@@ -99,10 +99,21 @@ describe('register', () => {
 // ── LOGIN ───────────────────────────────────────────────────────────────────
 
 describe('login', () => {
+  const originalJwtSecret = process.env.JWT_SECRET;
+  const originalJwtExpiresIn = process.env.JWT_EXPIRES_IN;
+
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.JWT_SECRET = 'test-secret';
     process.env.JWT_EXPIRES_IN = '1h';
+  });
+
+  afterAll(() => {
+    if (originalJwtSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = originalJwtSecret;
+
+    if (originalJwtExpiresIn === undefined) delete process.env.JWT_EXPIRES_IN;
+    else process.env.JWT_EXPIRES_IN = originalJwtExpiresIn;
   });
 
   it('returns 400 when email is missing', async () => {
@@ -178,6 +189,22 @@ describe('login', () => {
       expect.anything(),
       { expiresIn: '24h' }
     );
+  });
+
+  it('returns 500 when JWT_SECRET is not configured', async () => {
+    delete process.env.JWT_SECRET;
+    const fakeUser = { id: '1', name: 'Test', email: 'a@b.com', password: 'hashed' };
+    User.findOne.mockResolvedValue(fakeUser);
+    bcrypt.compare.mockResolvedValue(true);
+
+    const { req, res } = mockReqRes({ email: 'a@b.com', password: '123456' });
+    await login(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, message: 'Server configuration error' })
+    );
+    expect(jwt.sign).not.toHaveBeenCalled();
   });
 
   it('returns 500 on unexpected error', async () => {
