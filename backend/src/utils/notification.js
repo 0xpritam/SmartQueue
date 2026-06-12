@@ -20,19 +20,25 @@ const pruneOldNotifications = async (userId) => {
   try {
     const count = await Notification.count({ where: { userId } });
     if (count > 100) {
-      // Find the 100th notification (ordered DESC, offset 99)
-      const oldestToKeep = await Notification.findOne({
+      // Get the IDs of the 100 most recent notifications to keep
+      const notificationsToKeep = await Notification.findAll({
         where: { userId },
-        order: [['createdAt', 'DESC']],
-        offset: 99,
+        attributes: ['id'],
+        order: [
+          ['createdAt', 'DESC'],
+          ['id', 'DESC'],
+        ],
+        limit: 100,
       });
 
-      if (oldestToKeep) {
+      const idsToKeep = notificationsToKeep.map((n) => n.id);
+
+      if (idsToKeep.length > 0) {
         const deletedCount = await Notification.destroy({
           where: {
             userId,
-            createdAt: {
-              [Op.lt]: oldestToKeep.createdAt,
+            id: {
+              [Op.notIn]: idsToKeep,
             },
           },
         });
@@ -60,8 +66,8 @@ const createNotification = async (io, { userId, ticketId, title, message, type }
       type,
     });
 
-    // Run database pruning asynchronously
-    pruneOldNotifications(userId).catch((pruneErr) => {
+    // Run database pruning
+    await pruneOldNotifications(userId).catch((pruneErr) => {
       console.error('[NOTIFICATION ERROR] Async pruning error:', pruneErr);
     });
 

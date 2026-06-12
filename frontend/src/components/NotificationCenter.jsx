@@ -147,7 +147,8 @@ const NotificationCenter = ({ isDarkMode = false }) => {
               )}
             </div>
 
-            {/* Browser Permission Banner */}
+            {/* Browser Permission Banner (Deferred for Phase 1) */}
+            {/*
             {browserPermission === 'default' && (
               <div className={`mt-2 p-2 rounded-lg flex items-center justify-between border ${
                 isDarkMode 
@@ -166,6 +167,7 @@ const NotificationCenter = ({ isDarkMode = false }) => {
                 </button>
               </div>
             )}
+            */}
 
             {/* Body */}
             <div className="py-2.5 max-h-80 overflow-y-auto divide-y divide-slate-100/20 pr-0.5 mt-1 space-y-1">
@@ -216,7 +218,8 @@ const NotificationCenter = ({ isDarkMode = false }) => {
               )}
             </div>
 
-            {/* Footer */}
+            {/* Footer (Deferred for Phase 1) */}
+            {/*
             <div className="pt-2 border-t border-slate-100/30 text-center">
               <button
                 onClick={() => {
@@ -228,6 +231,7 @@ const NotificationCenter = ({ isDarkMode = false }) => {
                 See all notifications
               </button>
             </div>
+            */}
           </motion.div>
         )}
       </AnimatePresence>

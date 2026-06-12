@@ -70,7 +70,8 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  // Listen to socket connection user:${userId}
+  // Listen to socket connection user:${userId} (Commented out/deferred for Phase 1)
+  /*
   useEffect(() => {
     if (!socket || !currentUser) return;
 
@@ -114,6 +115,7 @@ export const NotificationProvider = ({ children }) => {
       socket.off('new_notification', handleNewNotification);
     };
   }, [socket, currentUser, pagination.limit]);
+  */
 
   const showToast = (notification) => {
     const id = Date.now();

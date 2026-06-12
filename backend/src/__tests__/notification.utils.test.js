@@ -11,6 +11,7 @@ jest.mock('../models', () => {
     create: jest.fn(),
     count: jest.fn(),
     findOne: jest.fn(),
+    findAll: jest.fn(),
     destroy: jest.fn(),
   };
   const mockTicket = {
@@ -83,7 +84,7 @@ describe('Notification Helper Utilities', () => {
       const fakeNotif = { id: 'notif-1', userId: 'user-1' };
       Notification.create.mockResolvedValue(fakeNotif);
       Notification.count.mockResolvedValue(105);
-      Notification.findOne.mockResolvedValue({ createdAt: new Date('2026-06-01') });
+      Notification.findAll.mockResolvedValue([{ id: 'notif-keep' }]);
       Notification.destroy.mockResolvedValue(5);
 
       await createNotification(mockIo, {
@@ -97,10 +98,14 @@ describe('Notification Helper Utilities', () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       expect(Notification.count).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
-      expect(Notification.findOne).toHaveBeenCalledWith({
+      expect(Notification.findAll).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
-        order: [['createdAt', 'DESC']],
-        offset: 99,
+        attributes: ['id'],
+        order: [
+          ['createdAt', 'DESC'],
+          ['id', 'DESC'],
+        ],
+        limit: 100,
       });
       expect(Notification.destroy).toHaveBeenCalled();
     });
