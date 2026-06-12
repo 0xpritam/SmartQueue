@@ -18,12 +18,23 @@ jest.mock('../models', () => {
 const { Notification } = require('../models');
 
 function mockReqRes(query = {}, params = {}, user = { id: 'user-1' }) {
-  const req = { query, params, user };
+  const mockIo = {
+    to: jest.fn().mockReturnThis(),
+    emit: jest.fn(),
+  };
+  const req = {
+    query,
+    params,
+    user,
+    app: {
+      get: jest.fn().mockReturnValue(mockIo),
+    },
+  };
   const res = {
     status: jest.fn().mockReturnThis(),
     json: jest.fn().mockReturnThis(),
   };
-  return { req, res };
+  return { req, res, mockIo };
 }
 
 describe('Notification Controller', () => {
@@ -101,7 +112,7 @@ describe('Notification Controller', () => {
   });
 
   describe('markAsRead', () => {
-    it('marks a single notification as read and returns 200', async () => {
+    it('marks a single notification as read, emits socket event, and returns 200', async () => {
       const mockSave = jest.fn();
       const mockNotificationInstance = {
         id: 'notif-1',
@@ -111,7 +122,7 @@ describe('Notification Controller', () => {
       };
       Notification.findOne.mockResolvedValue(mockNotificationInstance);
 
-      const { req, res } = mockReqRes({}, { id: 'notif-1' });
+      const { req, res, mockIo } = mockReqRes({}, { id: 'notif-1' });
       await markAsRead(req, res);
 
       expect(Notification.findOne).toHaveBeenCalledWith({
@@ -119,6 +130,8 @@ describe('Notification Controller', () => {
       });
       expect(mockNotificationInstance.isRead).toBe(true);
       expect(mockSave).toHaveBeenCalled();
+      expect(mockIo.to).toHaveBeenCalledWith('user:user-1');
+      expect(mockIo.emit).toHaveBeenCalledWith('notification_read', { id: 'notif-1' });
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({
         success: true,
@@ -152,16 +165,18 @@ describe('Notification Controller', () => {
   });
 
   describe('markAllAsRead', () => {
-    it('updates all unread notifications to read and returns 200', async () => {
+    it('updates all unread notifications to read, emits socket event, and returns 200', async () => {
       Notification.update.mockResolvedValue([5]); // updates 5 rows
 
-      const { req, res } = mockReqRes();
+      const { req, res, mockIo } = mockReqRes();
       await markAllAsRead(req, res);
 
       expect(Notification.update).toHaveBeenCalledWith(
         { isRead: true },
         { where: { userId: 'user-1', isRead: false } }
       );
+      expect(mockIo.to).toHaveBeenCalledWith('user:user-1');
+      expect(mockIo.emit).toHaveBeenCalledWith('all_notifications_read');
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({
         success: true,

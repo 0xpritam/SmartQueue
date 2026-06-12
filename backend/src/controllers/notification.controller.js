@@ -60,6 +60,12 @@ const markAsRead = async (req, res) => {
     notification.isRead = true;
     await notification.save();
 
+    // Emit socket update to other tabs
+    const io = req.app?.get?.('io');
+    if (io) {
+      io.to(`user:${req.user.id}`).emit('notification_read', { id });
+    }
+
     return res.status(200).json({
       success: true,
       notification,
@@ -80,6 +86,12 @@ const markAllAsRead = async (req, res) => {
       { isRead: true },
       { where: { userId: req.user.id, isRead: false } }
     );
+
+    // Emit socket update to other tabs
+    const io = req.app?.get?.('io');
+    if (io) {
+      io.to(`user:${req.user.id}`).emit('all_notifications_read');
+    }
 
     return res.status(200).json({
       success: true,

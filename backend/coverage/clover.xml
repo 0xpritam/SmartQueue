@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1781295061113" clover="3.2.0">
-  <project timestamp="1781295061113" name="All files">
-    <metrics statements="426" coveredstatements="337" conditionals="129" coveredconditionals="87" methods="49" coveredmethods="26" elements="604" coveredelements="450" complexity="0" loc="426" ncloc="426" packages="7" files="23" classes="23"/>
+<coverage generated="1781295703530" clover="3.2.0">
+  <project timestamp="1781295703530" name="All files">
+    <metrics statements="432" coveredstatements="343" conditionals="133" coveredconditionals="89" methods="49" coveredmethods="26" elements="614" coveredelements="458" complexity="0" loc="432" ncloc="432" packages="7" files="23" classes="23"/>
     <package name="src">
       <metrics statements="24" coveredstatements="24" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
       <file name="app.js" path="C:\Users\prita\OneDrive\Desktop\SMART-QUEUE\backend\src\app.js">
@@ -43,7 +43,7 @@
       </file>
     </package>
     <package name="src.controllers">
-      <metrics statements="266" coveredstatements="184" conditionals="97" coveredconditionals="65" methods="33" coveredmethods="13"/>
+      <metrics statements="272" coveredstatements="190" conditionals="101" coveredconditionals="67" methods="33" coveredmethods="13"/>
       <file name="auth.controller.js" path="C:\Users\prita\OneDrive\Desktop\SMART-QUEUE\backend\src\controllers\auth.controller.js">
         <metrics statements="32" coveredstatements="32" conditionals="17" coveredconditionals="17" methods="2" coveredmethods="2"/>
         <line num="1" count="4" type="stmt"/>
@@ -110,7 +110,7 @@
         <line num="93" count="4" type="stmt"/>
       </file>
       <file name="notification.controller.js" path="C:\Users\prita\OneDrive\Desktop\SMART-QUEUE\backend\src\controllers\notification.controller.js">
-        <metrics statements="31" coveredstatements="31" conditionals="6" coveredconditionals="6" methods="3" coveredmethods="3"/>
+        <metrics statements="37" coveredstatements="37" conditionals="10" coveredconditionals="8" methods="3" coveredmethods="3"/>
         <line num="3" count="5" type="stmt"/>
         <line num="6" count="5" type="stmt"/>
         <line num="7" count="3" type="stmt"/>
@@ -132,16 +132,22 @@
         <line num="54" count="1" type="stmt"/>
         <line num="60" count="1" type="stmt"/>
         <line num="61" count="1" type="stmt"/>
-        <line num="63" count="1" type="stmt"/>
-        <line num="68" count="1" type="stmt"/>
+        <line num="64" count="1" type="stmt"/>
+        <line num="65" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="66" count="1" type="stmt"/>
         <line num="69" count="1" type="stmt"/>
-        <line num="77" count="5" type="stmt"/>
-        <line num="78" count="2" type="stmt"/>
-        <line num="79" count="2" type="stmt"/>
-        <line num="84" count="1" type="stmt"/>
-        <line num="89" count="1" type="stmt"/>
-        <line num="90" count="1" type="stmt"/>
-        <line num="97" count="5" type="stmt"/>
+        <line num="74" count="1" type="stmt"/>
+        <line num="75" count="1" type="stmt"/>
+        <line num="83" count="5" type="stmt"/>
+        <line num="84" count="2" type="stmt"/>
+        <line num="85" count="2" type="stmt"/>
+        <line num="91" count="1" type="stmt"/>
+        <line num="92" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="93" count="1" type="stmt"/>
+        <line num="96" count="1" type="stmt"/>
+        <line num="101" count="1" type="stmt"/>
+        <line num="102" count="1" type="stmt"/>
+        <line num="109" count="5" type="stmt"/>
       </file>
       <file name="queue.controller.js" path="C:\Users\prita\OneDrive\Desktop\SMART-QUEUE\backend\src\controllers\queue.controller.js">
         <metrics statements="57" coveredstatements="46" conditionals="10" coveredconditionals="8" methods="8" coveredmethods="4"/>

@@ -70,8 +70,7 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  // Listen to socket connection user:${userId} (Commented out/deferred for Phase 1)
-  /*
+  // Listen to socket connection user:${userId}
   useEffect(() => {
     if (!socket || !currentUser) return;
 
@@ -83,7 +82,10 @@ export const NotificationProvider = ({ children }) => {
       console.log('[SOCKET] Received new notification:', newNotif);
 
       // Prepend to current list and adjust total count
-      setNotifications((prev) => [newNotif, ...prev].slice(0, pagination.limit));
+      setNotifications((prev) => {
+        if (prev.some((n) => n.id === newNotif.id)) return prev;
+        return [newNotif, ...prev];
+      });
       setPagination((prev) => ({
         ...prev,
         totalCount: prev.totalCount + 1,
@@ -91,31 +93,31 @@ export const NotificationProvider = ({ children }) => {
 
       // Trigger standard in-app toast
       showToast(newNotif);
+    };
 
-      // Trigger browser notification if allowed
-      if (
-        typeof window !== 'undefined' &&
-        'Notification' in window &&
-        window.Notification.permission === 'granted'
-      ) {
-        try {
-          new window.Notification(newNotif.title, {
-            body: newNotif.message,
-            icon: '/favicon.ico',
-          });
-        } catch (err) {
-          console.error('[NOTIFICATIONS CONTEXT] Browser notification construct error:', err);
-        }
-      }
+    const handleNotificationRead = ({ id }) => {
+      console.log('[SOCKET] Received notification_read event:', id);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+      );
+    };
+
+    const handleAllNotificationsRead = () => {
+      console.log('[SOCKET] Received all_notifications_read event');
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     };
 
     socket.on('new_notification', handleNewNotification);
+    socket.on('notification_read', handleNotificationRead);
+    socket.on('all_notifications_read', handleAllNotificationsRead);
 
     return () => {
+      console.log('[SOCKET] Tearing down user notifications listeners');
       socket.off('new_notification', handleNewNotification);
+      socket.off('notification_read', handleNotificationRead);
+      socket.off('all_notifications_read', handleAllNotificationsRead);
     };
-  }, [socket, currentUser, pagination.limit]);
-  */
+  }, [socket, currentUser]);
 
   const showToast = (notification) => {
     const id = Date.now();
