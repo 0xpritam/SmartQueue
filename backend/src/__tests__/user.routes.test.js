@@ -12,12 +12,23 @@ jest.mock('../controllers/user.controller', () => ({
   updateProfile: jest.fn((req, res) =>
     res.status(200).json({ success: true, message: 'profile updated' })
   ),
+  getProfile: jest.fn((req, res) =>
+    res.status(200).json({ success: true, user: { id: 'uuid-1', name: 'Test' } })
+  ),
 }));
 
-const { updateProfile } = require('../controllers/user.controller');
+const { updateProfile, getProfile } = require('../controllers/user.controller');
 
 describe('User routes', () => {
   beforeEach(() => jest.clearAllMocks());
+
+  describe('GET /api/users/profile', () => {
+    it('routes to getProfile controller', async () => {
+      const res = await request(app).get('/api/users/profile');
+      expect(res.status).toBe(200);
+      expect(getProfile).toHaveBeenCalled();
+    });
+  });
 
   describe('PUT /api/users/profile', () => {
     it('routes to updateProfile controller', async () => {
@@ -30,8 +41,8 @@ describe('User routes', () => {
   });
 
   describe('unsupported methods', () => {
-    it('rejects GET on /api/users/profile', async () => {
-      const res = await request(app).get('/api/users/profile');
+    it('rejects POST on /api/users/profile', async () => {
+      const res = await request(app).post('/api/users/profile');
       expect(res.status).toBeGreaterThanOrEqual(400);
     });
   });
