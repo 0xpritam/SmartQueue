@@ -11,11 +11,24 @@ const departmentRoutes = require('./routes/department.routes');
 const userRoutes = require('./routes/user.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
+const helmet = require('helmet');
 
 // Global Middleware
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000'
+].filter(Boolean);
+
 app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+}));
+
 
 // API Routes
 app.use('/api/auth', authRoutes);
