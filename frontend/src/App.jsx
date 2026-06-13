@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './App.css'
 import LandingPage from './pages/LandingPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
+import StaffLoginPage from './pages/StaffLoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 import StaffDashboard from './pages/StaffDashboard.jsx'
 import PatientDashboard from './pages/PatientDashboard.jsx'
@@ -17,11 +18,12 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/staff-login" element={<StaffLoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin']}>
               <StaffDashboard />
             </ProtectedRoute>
           }
@@ -29,7 +31,7 @@ function App() {
         <Route
           path="/patient-dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['user']}>
               <PatientDashboard />
             </ProtectedRoute>
           }
@@ -37,7 +39,7 @@ function App() {
         <Route
           path="/notifications"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin', 'user']}>
               <Notifications />
             </ProtectedRoute>
           }

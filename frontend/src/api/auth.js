@@ -30,4 +30,9 @@ export const login = async (email, password) => {
   return res.data;
 };
 
+export const getProfile = async () => {
+  const res = await api.get('/users/me');
+  return res.data;
+};
+
 export default api;

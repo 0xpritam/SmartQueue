@@ -1,4 +1,4 @@
-const { updateProfile } = require('../controllers/user.controller');
+const { updateProfile, getProfile } = require('../controllers/user.controller');
 
 // Mock dependencies
 jest.mock('../models', () => {
@@ -152,6 +152,65 @@ describe('updateProfile', () => {
           role: 'user'
         })
       })
+    );
+  });
+});
+
+describe('getProfile', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('returns 200 with user profile including role', async () => {
+    const fakeUser = {
+      id: 'uuid-1',
+      name: 'Test Name',
+      email: 'test@email.com',
+      phone: '1234567890',
+      age: 32,
+      role: 'user',
+    };
+    User.findByPk.mockResolvedValue(fakeUser);
+
+    const { req, res } = mockReqRes();
+    await getProfile(req, res);
+
+    expect(User.findByPk).toHaveBeenCalledWith('uuid-1');
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      user: {
+        id: 'uuid-1',
+        name: 'Test Name',
+        email: 'test@email.com',
+        phone: '1234567890',
+        age: 32,
+        role: 'user',
+      },
+    });
+  });
+
+  it('returns 404 when user is not found', async () => {
+    User.findByPk.mockResolvedValue(null);
+
+    const { req, res } = mockReqRes();
+    await getProfile(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, message: 'User not found' })
+    );
+  });
+
+  it('returns 500 when database throws an error', async () => {
+    User.findByPk.mockRejectedValue(new Error('Database error'));
+
+    const { req, res } = mockReqRes();
+    await getProfile(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, message: 'Server error' })
     );
   });
 });

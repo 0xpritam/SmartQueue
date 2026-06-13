@@ -12,12 +12,23 @@ jest.mock('../controllers/user.controller', () => ({
   updateProfile: jest.fn((req, res) =>
     res.status(200).json({ success: true, message: 'profile updated' })
   ),
+  getProfile: jest.fn((req, res) =>
+    res.status(200).json({ success: true, message: 'profile retrieved' })
+  ),
 }));
 
-const { updateProfile } = require('../controllers/user.controller');
+const { updateProfile, getProfile } = require('../controllers/user.controller');
 
 describe('User routes', () => {
   beforeEach(() => jest.clearAllMocks());
+
+  describe('GET /api/users/me', () => {
+    it('routes to getProfile controller', async () => {
+      const res = await request(app).get('/api/users/me');
+      expect(res.status).toBe(200);
+      expect(getProfile).toHaveBeenCalled();
+    });
+  });
 
   describe('PUT /api/users/profile', () => {
     it('routes to updateProfile controller', async () => {

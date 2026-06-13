@@ -26,7 +26,7 @@ const RegisterPage = () => {
         setError(res.message || 'Registration failed')
       }
     } catch (err) {
-      setError(err?.response?.data?.message || err.message || 'Register error')
+      setError(err?.response?.data?.message || err.message || 'Registration error')
     } finally {
       setLoading(false)
     }
@@ -44,7 +44,7 @@ const RegisterPage = () => {
           </div>
           <div>
             <span className="text-xl font-bold tracking-tight text-slate-900 block leading-tight">SmartQueue</span>
-            <span className="text-xs text-slate-500 font-medium block">Clinical Portal</span>
+            <span className="text-xs text-slate-500 font-medium block">Patient Platform</span>
           </div>
         </div>
       </div>
@@ -52,8 +52,8 @@ const RegisterPage = () => {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="card-container">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Create Operator Profile</h1>
-            <p className="text-sm text-slate-500 mt-1">Register a new hospital receptionist or admin credentials.</p>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Create Patient Account</h1>
+            <p className="text-sm text-slate-500 mt-1">Register to book queue slips and track doctor availability online.</p>
           </div>
 
           {error && (
@@ -77,7 +77,7 @@ const RegisterPage = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="name" className="input-label">
-                Full Name & Title
+                Full Name
               </label>
               <input
                 id="name"
@@ -87,13 +87,13 @@ const RegisterPage = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="input-field"
-                placeholder="Dr. Priya Sharma or Reception Staff"
+                placeholder="John Doe"
               />
             </div>
 
             <div>
               <label htmlFor="email" className="input-label">
-                Hospital Email
+                Email Address
               </label>
               <input
                 id="email"
@@ -104,13 +104,13 @@ const RegisterPage = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="input-field"
-                placeholder="staff.name@hospital.org"
+                placeholder="your.name@email.com"
               />
             </div>
 
             <div>
               <label htmlFor="password" className="input-label">
-                Create Password
+                Password
               </label>
               <div className="relative">
                 <input
@@ -154,10 +154,10 @@ const RegisterPage = () => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
                   </svg>
-                  <span>Provisioning operator...</span>
+                  <span>Creating account...</span>
                 </>
               ) : (
-                <span>Register Operator</span>
+                <span>Register Account</span>
               )}
             </button>
           </form>
@@ -165,7 +165,7 @@ const RegisterPage = () => {
           <div className="mt-6 pt-6 border-t border-slate-100 text-center text-sm text-slate-500">
             <span>Already registered?</span>{' '}
             <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium transition-colors hover:underline">
-              Access staff terminal
+              Sign in
             </Link>
           </div>
         </div>
