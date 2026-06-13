@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
@@ -8,8 +8,19 @@ const LoginPage = () => {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const { login } = useAuth()
+  const { login, token, currentUser } = useAuth()
   const navigate = useNavigate()
+
+  // If already logged in, redirect to correct dashboard
+  useEffect(() => {
+    if (token && currentUser && currentUser.role) {
+      if (currentUser.role === 'admin') {
+        navigate('/dashboard', { replace: true })
+      } else {
+        navigate('/patient-dashboard', { replace: true })
+      }
+    }
+  }, [token, currentUser, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -18,7 +29,12 @@ const LoginPage = () => {
     try {
       const res = await login(email, password)
       if (res && res.success) {
-        navigate('/dashboard')
+        const role = res.user?.role
+        if (role === 'admin') {
+          navigate('/dashboard')
+        } else {
+          navigate('/patient-dashboard')
+        }
       } else {
         setError(res.message || 'Login failed')
       }
@@ -41,7 +57,7 @@ const LoginPage = () => {
           </div>
           <div>
             <span className="text-xl font-bold tracking-tight text-slate-900 block leading-tight">SmartQueue</span>
-            <span className="text-xs text-slate-500 font-medium block">Clinical Portal</span>
+            <span className="text-xs text-slate-500 font-medium block">Patient Platform</span>
           </div>
         </div>
       </div>
@@ -49,8 +65,8 @@ const LoginPage = () => {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="card-container">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Staff Sign In</h1>
-            <p className="text-sm text-slate-500 mt-1">Access clinical queue orchestration dashboard.</p>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Patient Portal</h1>
+            <p className="text-sm text-slate-500 mt-1">Sign in to book queue slips and track doctor availability.</p>
           </div>
 
           {error && (
@@ -65,7 +81,7 @@ const LoginPage = () => {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="email" className="input-label">
-                Hospital Email
+                Email Address
               </label>
               <input
                 id="email"
@@ -76,7 +92,7 @@ const LoginPage = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="input-field"
-                placeholder="receptionist@hospital.org"
+                placeholder="your.name@email.com"
               />
             </div>
 
@@ -99,7 +115,7 @@ const LoginPage = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword((s) => !s)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors focus:outline-none cursor-pointer"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
@@ -130,15 +146,15 @@ const LoginPage = () => {
                   <span>Verifying account...</span>
                 </>
               ) : (
-                <span>Access Dashboard</span>
+                <span>Access Portal</span>
               )}
             </button>
           </form>
 
           <div className="mt-6 pt-6 border-t border-slate-100 text-center text-sm text-slate-500">
-            <span>New terminal operator?</span>{' '}
+            <span>New patient?</span>{' '}
             <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium transition-colors hover:underline">
-              Register clinical account
+              Register patient account
             </Link>
           </div>
         </div>
@@ -148,7 +164,7 @@ const LoginPage = () => {
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
-          <span>HIPAA Compliant Session. Secure Socket Layer Encrypted.</span>
+          <span>SSL Secured Platform. Your medical data stays private.</span>
         </div>
       </div>
     </div>
