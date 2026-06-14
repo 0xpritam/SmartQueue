@@ -22,7 +22,7 @@ export const SocketProvider = ({ children }) => {
     }
 
     console.log('[SOCKET] Initializing socket connection');
-    const socketUrl = 'http://localhost:5000';
+   const socketUrl = import.meta.env.VITE_SOCKET_URL;
     const newSocket = io(socketUrl, {
       auth: { token },
       reconnectionAttempts: 10,
