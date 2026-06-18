@@ -1,4 +1,5 @@
-const { Ticket, Department } = require('../models');
+const { Ticket, Department, User } = require('../models');
+const QRCode = require('qrcode');
 const { v4: uuidv4 } = require('uuid');
 const { createNotification, handleQueuePositionChanges, getCleanTicketNumber } = require('../utils/notification');
 
@@ -241,6 +242,75 @@ const updateTicketStatus = async (req, res) => {
 };
 
 // ==========================================
+// GET TICKET QR CODE
+// ==========================================
+const getTicketQR = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid ticket ID format',
+      });
+    }
+
+    // 2. Find ticket by ID
+    const ticket = await Ticket.findByPk(id);
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ticket not found',
+      });
+    }
+
+    // 3. Load current user from database
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // 4. Check access permissions
+    const isOwner = ticket.userId === req.user.id;
+    const isAdmin = user.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized access to this ticket',
+      });
+    }
+
+    // 5. Generate QR payload
+    const qrPayload = {
+      ticketNumber: ticket.ticketNumber,
+      ticketId: ticket.id,
+      patientId: ticket.userId,
+    };
+
+    // 6. Generate QR dynamically using qrcode package
+    const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(qrPayload));
+
+    // 7. Return successful response
+    return res.status(200).json({
+      success: true,
+      ticketId: ticket.ticketNumber,
+      qrCode: qrCodeDataUrl,
+    });
+  } catch (error) {
+    console.error('Get ticket QR error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+};
+
+// ==========================================
 // EXPORTS
 // ==========================================
 module.exports = {
@@ -249,5 +319,6 @@ module.exports = {
   getTicketById,
   getAllTickets,
   updateTicketStatus,
+  getTicketQR,
 };
 

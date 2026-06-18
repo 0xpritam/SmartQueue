@@ -6,7 +6,8 @@ const {
   getMyTickets, 
   getTicketById, 
   getAllTickets, 
-  updateTicketStatus 
+  updateTicketStatus,
+  getTicketQR
 } = require('../controllers/ticket.controller');
 
 // POST /api/tickets - Generate a new ticket (authenticated)
@@ -20,6 +21,9 @@ router.get('/my', authenticate, getMyTickets);
 
 // GET /api/tickets/:id - Get ticket by ID (authenticated)
 router.get('/:id', authenticate, getTicketById);
+
+// GET /api/tickets/:id/qr - Get ticket QR code (authenticated)
+router.get('/:id/qr', authenticate, getTicketQR);
 
 // PATCH /api/tickets/:id/status - Update ticket status (authenticated, for staff dashboard)
 router.patch('/:id/status', authenticate, updateTicketStatus);
