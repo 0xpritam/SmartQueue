@@ -330,7 +330,7 @@ const cancelTicket = async (req, res) => {
 
     // 2. Find ticket by ID
     const ticket = await Ticket.findByPk(id);
-    console.log("Found Ticket:", ticket);
+    
     if (!ticket) {
       return res.status(404).json({
         success: false,
@@ -340,10 +340,9 @@ const cancelTicket = async (req, res) => {
 
     // 3. Load current user from database
     const user = await User.findByPk(req.user.id);
-    console.log("DB User:", user?.id, user?.role);
+    
 
-console.log("Ticket User:", ticket.userId);
-console.log("Request User:", req.user.id);
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -362,7 +361,7 @@ console.log("Request User:", req.user.id);
     }
 
     // 5. Only allow cancellation when status is 'waiting'
-    console.log("Current Status:", ticket?.status);
+   
     if (ticket.status !== 'waiting') {
       return res.status(400).json({
         success: false,

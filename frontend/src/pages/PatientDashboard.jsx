@@ -193,12 +193,7 @@ const PatientDashboard = () => {
   };
 
   const handleCancelSubmit = async (e) => {
-alert("HANDLE CANCEL HIT");
-alert(JSON.stringify(ticketToCancel, null, 2));
 
-   console.log("ticketToCancel =", ticketToCancel);
-console.log("ticketToCancel.id =", ticketToCancel?.id);
-console.log("ticketToCancel.ticketNumber =", ticketToCancel?.ticketNumber);
     e.preventDefault();
     if (!ticketToCancel) return;
     setCancelLoading(true);
