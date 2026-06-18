@@ -311,6 +311,111 @@ const getTicketQR = async (req, res) => {
 };
 
 // ==========================================
+// CANCEL TICKET
+// ==========================================
+const cancelTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid ticket ID format',
+      });
+    }
+
+    // 2. Find ticket by ID
+    const ticket = await Ticket.findByPk(id);
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ticket not found',
+      });
+    }
+
+    // 3. Load current user from database
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // 4. Check access permissions
+    const isOwner = ticket.userId === req.user.id;
+    const isAdmin = user.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized access to this ticket',
+      });
+    }
+
+    // 5. Only allow cancellation when status is 'waiting'
+    if (ticket.status !== 'waiting') {
+      return res.status(400).json({
+        success: false,
+        message: `Only tickets with status 'waiting' can be cancelled. Current status is '${ticket.status}'.`,
+      });
+    }
+
+    const departmentId = ticket.departmentId;
+
+    // 6. Fetch waiting tickets before cancellation
+    const ticketsBefore = await Ticket.findAll({
+      where: { departmentId, status: 'waiting' },
+      order: [['createdAt', 'ASC']],
+    });
+
+    // 7. Update status to 'cancelled' and save
+    ticket.status = 'cancelled';
+    await ticket.save();
+
+    // 8. Fetch waiting tickets after cancellation
+    const ticketsAfter = await Ticket.findAll({
+      where: { departmentId, status: 'waiting' },
+      order: [['createdAt', 'ASC']],
+    });
+
+    // 9. Socket.io updates
+    const io = req.app?.get?.('io');
+    if (io) {
+      // Emit ticket_updated to the ticket room
+      io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
+      // Emit queue_updated to the department room
+      io.to(`department_${departmentId}`).emit('queue_updated', { departmentId });
+
+      // Call handleQueuePositionChanges asynchronously
+      handleQueuePositionChanges(io, departmentId, ticketsBefore, ticketsAfter);
+
+      // Create cancellation notification
+      createNotification(io, {
+        userId: ticket.userId,
+        ticketId: ticket.id,
+        title: 'Ticket Cancelled',
+        message: `Your ticket ${getCleanTicketNumber(ticket)} has been cancelled.`,
+        type: 'queue_update',
+      }).catch((err) => console.error('[NOTIFICATION ERROR] Cancellation notification failed:', err));
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Ticket cancelled successfully',
+      ticket,
+    });
+  } catch (error) {
+    console.error('Cancel ticket error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+};
+
+// ==========================================
 // EXPORTS
 // ==========================================
 module.exports = {
@@ -320,5 +425,6 @@ module.exports = {
   getAllTickets,
   updateTicketStatus,
   getTicketQR,
+  cancelTicket,
 };
 

@@ -36,3 +36,10 @@ export const getTicketQRCode = async (ticketId) => {
   return res.data;
 };
 
+// Cancel ticket
+export const cancelTicket = async (ticketId) => {
+  console.log("Canceling ticket:", ticketId);
+  const res = await api.patch(`/tickets/${ticketId}/cancel`);
+  return res.data;
+};
+

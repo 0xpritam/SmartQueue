@@ -1,22 +1,26 @@
-const { generateTicket, getMyTickets, getTicketById } = require('../controllers/ticket.controller');
+const { generateTicket, getMyTickets, getTicketById, cancelTicket } = require('../controllers/ticket.controller');
 
 jest.mock('../models', () => {
   const mockTicket = {
     create: jest.fn(),
     findAll: jest.fn(),
     findOne: jest.fn(),
+    findByPk: jest.fn(),
   };
   const mockDepartment = {
     findByPk: jest.fn(),
   };
-  return { Ticket: mockTicket, Department: mockDepartment };
+  const mockUser = {
+    findByPk: jest.fn(),
+  };
+  return { Ticket: mockTicket, Department: mockDepartment, User: mockUser };
 });
 
 jest.mock('uuid', () => ({
   v4: () => 'aaaa-bbbb-cccc-dddd',
 }));
 
-const { Ticket, Department } = require('../models');
+const { Ticket, Department, User } = require('../models');
 
 function mockReqRes(body = {}, params = {}, user = { id: 'user-1' }) {
   const req = { body, params, user };
@@ -204,5 +208,124 @@ describe('getTicketById', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ success: false, message: 'Server error' })
     );
+  });
+});
+
+// ── CANCEL TICKET ───────────────────────────────────────────────────────────
+
+describe('cancelTicket', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('returns 400 when ticket ID is not a valid UUID', async () => {
+    const { req, res } = mockReqRes({}, { id: 'invalid-uuid' });
+    await cancelTicket(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Invalid ticket ID format' })
+    );
+  });
+
+  it('returns 404 when ticket does not exist', async () => {
+    const validUuid = '12345678-1234-4234-a234-1234567890ab';
+    Ticket.findByPk.mockResolvedValue(null);
+    const { req, res } = mockReqRes({}, { id: validUuid });
+    await cancelTicket(req, res);
+    expect(Ticket.findByPk).toHaveBeenCalledWith(validUuid);
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Ticket not found' })
+    );
+  });
+
+  it('returns 404 when requesting user does not exist in DB', async () => {
+    const validUuid = '12345678-1234-4234-a234-1234567890ab';
+    const fakeTicket = { id: validUuid, userId: 'user-1', status: 'waiting' };
+    Ticket.findByPk.mockResolvedValue(fakeTicket);
+    User.findByPk.mockResolvedValue(null);
+
+    const { req, res } = mockReqRes({}, { id: validUuid }, { id: 'user-1' });
+    await cancelTicket(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'User not found' })
+    );
+  });
+
+  it('returns 403 when user is not the owner and not an admin', async () => {
+    const validUuid = '12345678-1234-4234-a234-1234567890ab';
+    const fakeTicket = { id: validUuid, userId: 'user-owner', status: 'waiting' };
+    Ticket.findByPk.mockResolvedValue(fakeTicket);
+    User.findByPk.mockResolvedValue({ id: 'user-other', role: 'user' });
+
+    const { req, res } = mockReqRes({}, { id: validUuid }, { id: 'user-other' });
+    await cancelTicket(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Unauthorized access to this ticket' })
+    );
+  });
+
+  it('returns 400 when status is not waiting (already serving/completed/cancelled)', async () => {
+    const validUuid = '12345678-1234-4234-a234-1234567890ab';
+    const fakeTicket = { id: validUuid, userId: 'user-1', status: 'serving' };
+    Ticket.findByPk.mockResolvedValue(fakeTicket);
+    User.findByPk.mockResolvedValue({ id: 'user-1', role: 'user' });
+
+    const { req, res } = mockReqRes({}, { id: validUuid }, { id: 'user-1' });
+    await cancelTicket(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining("Only tickets with status 'waiting' can be cancelled") })
+    );
+  });
+
+  it('successfully cancels ticket when requested by owner', async () => {
+    const validUuid = '12345678-1234-4234-a234-1234567890ab';
+    const fakeTicket = { 
+      id: validUuid, 
+      userId: 'user-1', 
+      status: 'waiting',
+      departmentId: 'dept-1',
+      ticketNumber: 'TKT-123',
+      save: jest.fn().mockResolvedValue(true)
+    };
+    Ticket.findByPk.mockResolvedValue(fakeTicket);
+    User.findByPk.mockResolvedValue({ id: 'user-1', role: 'user' });
+    Ticket.findAll.mockResolvedValue([]);
+
+    const { req, res } = mockReqRes({}, { id: validUuid }, { id: 'user-1' });
+    await cancelTicket(req, res);
+
+    expect(fakeTicket.status).toBe('cancelled');
+    expect(fakeTicket.save).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true, message: 'Ticket cancelled successfully' })
+    );
+  });
+
+  it('successfully cancels ticket when requested by admin', async () => {
+    const validUuid = '12345678-1234-4234-a234-1234567890ab';
+    const fakeTicket = { 
+      id: validUuid, 
+      userId: 'user-owner', 
+      status: 'waiting',
+      departmentId: 'dept-1',
+      ticketNumber: 'TKT-123',
+      save: jest.fn().mockResolvedValue(true)
+    };
+    Ticket.findByPk.mockResolvedValue(fakeTicket);
+    User.findByPk.mockResolvedValue({ id: 'admin-user', role: 'admin' });
+    Ticket.findAll.mockResolvedValue([]);
+
+    const { req, res } = mockReqRes({}, { id: validUuid }, { id: 'admin-user' });
+    await cancelTicket(req, res);
+
+    expect(fakeTicket.status).toBe('cancelled');
+    expect(fakeTicket.save).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 });

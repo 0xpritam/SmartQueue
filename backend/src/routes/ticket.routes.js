@@ -7,7 +7,8 @@ const {
   getTicketById, 
   getAllTickets, 
   updateTicketStatus,
-  getTicketQR
+  getTicketQR,
+  cancelTicket
 } = require('../controllers/ticket.controller');
 
 // POST /api/tickets - Generate a new ticket (authenticated)
@@ -28,5 +29,10 @@ router.get('/:id/qr', authenticate, getTicketQR);
 // PATCH /api/tickets/:id/status - Update ticket status (authenticated, for staff dashboard)
 router.patch('/:id/status', authenticate, updateTicketStatus);
 
+// PATCH /api/tickets/:id/cancel - Cancel ticket (authenticated)
+router.patch('/:id/cancel', authenticate, (req, res) => {
+  console.log("CANCEL ROUTE HIT");
+  res.json({ success: true });
+});
 module.exports = router;
 

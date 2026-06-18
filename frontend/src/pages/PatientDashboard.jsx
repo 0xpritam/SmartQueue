@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PatientNavbar from '../components/PatientNavbar';
 import PatientFooter from '../components/PatientFooter';
 import { useAuth } from '../context/AuthContext';
-import { getMyTickets, getTicketQRCode } from '../api/tickets';
+import { getMyTickets, getTicketQRCode, cancelTicket } from '../api/tickets';
 import { getWaitingTickets } from '../api/queues';
 import { getDepartments } from '../api/departments';
 import { useSocket } from '../context/SocketContext';
@@ -32,6 +32,10 @@ const PatientDashboard = () => {
   const [qrLoading, setQrLoading] = useState(false);
   const [qrCodeData, setQrCodeData] = useState(null);
   const [qrError, setQrError] = useState(null);
+
+  // Cancellation State
+  const [ticketToCancel, setTicketToCancel] = useState(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const [profileForm, setProfileForm] = useState({
     name: currentUser?.name || '',
@@ -186,6 +190,38 @@ const PatientDashboard = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleCancelSubmit = async (e) => {
+alert("HANDLE CANCEL HIT");
+alert(JSON.stringify(ticketToCancel, null, 2));
+
+   console.log("ticketToCancel =", ticketToCancel);
+console.log("ticketToCancel.id =", ticketToCancel?.id);
+console.log("ticketToCancel.ticketNumber =", ticketToCancel?.ticketNumber);
+    e.preventDefault();
+    if (!ticketToCancel) return;
+    setCancelLoading(true);
+    try {
+      const res = await cancelTicket(ticketToCancel.id);
+      if (res && res.success) {
+        setTicketToCancel(null);
+        setToast({ message: 'Appointment cancelled successfully.', type: 'success' });
+        setTimeout(() => setToast(null), 4000);
+        // Refresh dashboard data
+        await fetchPatientData(true);
+      } else {
+        setToast({ message: res.message || 'Failed to cancel appointment.', type: 'error' });
+        setTimeout(() => setToast(null), 4000);
+      }
+    } catch (err) {
+      console.error('Cancel ticket submit error:', err);
+      const errMsg = err.response?.data?.message || 'An error occurred during cancellation.';
+      setToast({ message: errMsg, type: 'error' });
+      setTimeout(() => setToast(null), 4000);
+    } finally {
+      setCancelLoading(false);
+    }
   };
 
   const handleOpenEditModal = () => {
@@ -498,7 +534,7 @@ const PatientDashboard = () => {
                               {t.status === 'serving' ? '0 mins' : `${estWaitVal} mins`}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 pt-1.5 sm:pt-0">
+                          <div className="flex items-center gap-2 pt-1.5 sm:pt-0 flex-wrap">
                             <button
                               onClick={() => handleOpenQRModal(t)}
                               className="btn-secondary py-1.5 px-3 text-xs font-bold cursor-pointer shrink-0 flex items-center gap-1.5"
@@ -510,6 +546,18 @@ const PatientDashboard = () => {
                               </svg>
                               <span>QR Code</span>
                             </button>
+                            {t.status === 'waiting' && (
+                              <button
+                                onClick={() => setTicketToCancel(t)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors font-bold text-xs cursor-pointer shrink-0"
+                                title="Cancel Ticket"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                <span>Cancel</span>
+                              </button>
+                            )}
                             <button
                               onClick={() => navigate(`/queue-status/${t.id}`)}
                               className="btn-primary py-1.5 px-3.5 text-xs font-bold cursor-pointer shrink-0"
@@ -902,6 +950,102 @@ const PatientDashboard = () => {
                   </div>
                 </div>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Cancel Ticket Confirmation Modal */}
+      <AnimatePresence>
+        {ticketToCancel && (
+          <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 animate-fadeIn">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                if (!cancelLoading) setTicketToCancel(null);
+              }}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 overflow-hidden z-10 space-y-4"
+            >
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                <h3 className="text-base font-bold text-slate-900">Cancel Appointment</h3>
+                <button
+                  type="button"
+                  onClick={() => setTicketToCancel(null)}
+                  className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                  disabled={cancelLoading}
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-xs text-red-700 font-semibold flex items-start gap-2.5">
+                  <svg className="h-5 w-5 text-red-600 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>
+                    Are you sure you want to cancel this booking? This action cannot be undone and you will lose your current queue position.
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-100 rounded-lg p-3.5 text-xs font-semibold text-slate-700 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Ticket ID:</span>
+                    <span className="text-slate-900 font-mono">
+                      {ticketToCancel.ticketNumber.split('-')[2]?.substring(0, 6) || ticketToCancel.id.substring(0, 6)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Facility:</span>
+                    <span className="text-slate-900 truncate max-w-[180px]">{getTicketMetadata(ticketToCancel.id).hospitalName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Division:</span>
+                    <span className="text-slate-900">{getTicketMetadata(ticketToCancel.id).departmentName}</span>
+                  </div>
+                </div>
+              </div>
+
+              <form onSubmit={handleCancelSubmit} className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setTicketToCancel(null)}
+                  className="btn-secondary flex-1 py-2 text-xs font-bold cursor-pointer"
+                  disabled={cancelLoading}
+                >
+                  Keep Ticket
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 text-xs font-bold gap-1.5 cursor-pointer flex items-center justify-center rounded-md border border-transparent bg-red-600 text-white hover:bg-red-700 transition-all shadow-sm active:translate-y-px disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={cancelLoading}
+                >
+                  {cancelLoading ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Cancelling...
+                    </>
+                  ) : (
+                    'Cancel Booking'
+                  )}
+                </button>
+              </form>
             </motion.div>
           </div>
         )}
