@@ -11,6 +11,16 @@ const {
   cancelTicket
 } = require('../controllers/ticket.controller');
 
+//TEMPORARY 
+router.get('/test-cancel', (req, res) => {
+  console.log("TEST ROUTE HIT");
+  res.json({
+    success: true,
+    message: "cancel route deployed"
+  });
+});
+
+
 // POST /api/tickets - Generate a new ticket (authenticated)
 router.post('/', authenticate, generateTicket);
 
