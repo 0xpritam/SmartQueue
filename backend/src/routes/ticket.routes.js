@@ -40,9 +40,7 @@ router.get('/:id/qr', authenticate, getTicketQR);
 router.patch('/:id/status', authenticate, updateTicketStatus);
 
 // PATCH /api/tickets/:id/cancel - Cancel ticket (authenticated)
-router.patch('/:id/cancel', authenticate, (req, res) => {
-  console.log("CANCEL ROUTE HIT");
-  res.json({ success: true });
-});
+router.patch('/:id/cancel', authenticate, cancelTicket);
+
 module.exports = router;
 
