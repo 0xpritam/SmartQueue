@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PatientNavbar from '../components/PatientNavbar';
 import PatientFooter from '../components/PatientFooter';
 import { useAuth } from '../context/AuthContext';
-import { getMyTickets } from '../api/tickets';
+import { getMyTickets, getTicketQRCode } from '../api/tickets';
 import { getWaitingTickets } from '../api/queues';
 import { getDepartments } from '../api/departments';
 import { useSocket } from '../context/SocketContext';
@@ -26,6 +26,12 @@ const PatientDashboard = () => {
   const [saveLoading, setSaveLoading] = useState(false);
   const [modalError, setModalError] = useState(null);
   const [toast, setToast] = useState(null); // { message, type }
+  
+  // QR Code State
+  const [selectedTicketForQR, setSelectedTicketForQR] = useState(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrCodeData, setQrCodeData] = useState(null);
+  const [qrError, setQrError] = useState(null);
 
   const [profileForm, setProfileForm] = useState({
     name: currentUser?.name || '',
@@ -150,6 +156,37 @@ const PatientDashboard = () => {
   };
 
   const stats = getDashboardStats();
+
+  const handleOpenQRModal = async (ticket) => {
+    setSelectedTicketForQR(ticket);
+    setQrLoading(true);
+    setQrCodeData(null);
+    setQrError(null);
+    try {
+      const res = await getTicketQRCode(ticket.id);
+      if (res && res.success) {
+        setQrCodeData(res.qrCode);
+      } else {
+        setQrError('Failed to load QR code. Please try again.');
+      }
+    } catch (err) {
+      console.error('Fetch QR code error:', err);
+      setQrError(err.response?.data?.message || 'Error fetching QR code. Try again later.');
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const handleDownloadQR = () => {
+    if (!qrCodeData || !selectedTicketForQR) return;
+    const cleanNum = selectedTicketForQR.ticketNumber.split('-')[2]?.substring(0, 6) || selectedTicketForQR.id.substring(0, 6);
+    const link = document.createElement('a');
+    link.href = qrCodeData;
+    link.download = `QR_Code_TKT-${cleanNum}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleOpenEditModal = () => {
     setProfileForm({
@@ -461,7 +498,18 @@ const PatientDashboard = () => {
                               {t.status === 'serving' ? '0 mins' : `${estWaitVal} mins`}
                             </span>
                           </div>
-                          <div className="flex items-center pt-1.5 sm:pt-0">
+                          <div className="flex items-center gap-2 pt-1.5 sm:pt-0">
+                            <button
+                              onClick={() => handleOpenQRModal(t)}
+                              className="btn-secondary py-1.5 px-3 text-xs font-bold cursor-pointer shrink-0 flex items-center gap-1.5"
+                              title="View QR Code"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a1 1 0 11-2 0 1 1 0 012 0zM12 15a1 1 0 11-2 0 1 1 0 012 0zM18 15a1 1 0 11-2 0 1 1 0 012 0zM15 18a1 1 0 11-2 0 1 1 0 012 0zM18 18a1 1 0 11-2 0 1 1 0 012 0z" />
+                              </svg>
+                              <span>QR Code</span>
+                            </button>
                             <button
                               onClick={() => navigate(`/queue-status/${t.id}`)}
                               className="btn-primary py-1.5 px-3.5 text-xs font-bold cursor-pointer shrink-0"
@@ -735,6 +783,127 @@ const PatientDashboard = () => {
             )}
             <div className="text-xs font-semibold">{toast.message}</div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* QR Code Ticket Modal */}
+      <AnimatePresence>
+        {selectedTicketForQR && (
+          <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 animate-fadeIn">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                if (!qrLoading) setSelectedTicketForQR(null);
+              }}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 overflow-hidden z-10 space-y-5"
+            >
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Queue Ticket Pass</h3>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold font-sans mt-0.5">Scan at reception</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTicketForQR(null)}
+                  className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                  disabled={qrLoading}
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* QR Code content container */}
+              <div className="flex flex-col items-center justify-center py-4 bg-slate-50 rounded-xl border border-slate-100 min-h-[220px]">
+                {qrLoading ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <svg className="animate-spin h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest animate-pulse">Loading Pass...</span>
+                  </div>
+                ) : qrError ? (
+                  <div className="text-center px-4 space-y-2">
+                    <svg className="w-10 h-10 text-red-500 mx-auto" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <p className="text-xs font-semibold text-red-700">{qrError}</p>
+                    <button
+                      onClick={() => handleOpenQRModal(selectedTicketForQR)}
+                      className="btn-secondary py-1 px-3 text-[10px] font-bold"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : qrCodeData ? (
+                  <div className="space-y-4 text-center">
+                    <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm inline-block">
+                      <img src={qrCodeData} alt="Queue QR Code" className="w-40 h-40 mx-auto select-none" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Ticket ID</div>
+                      <div className="text-sm font-black text-slate-900 font-mono">
+                        {selectedTicketForQR.ticketNumber}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Info Details & Action Buttons */}
+              {!qrLoading && !qrError && qrCodeData && (
+                <div className="space-y-4">
+                  <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 text-[11px] font-medium text-slate-600 space-y-1.5">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 font-bold uppercase">Division</span>
+                      <span className="text-slate-800 font-bold">{getTicketMetadata(selectedTicketForQR.id).departmentName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 font-bold uppercase">Status</span>
+                      <span className="font-bold capitalize text-blue-600">{selectedTicketForQR.status}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 font-bold uppercase">Created At</span>
+                      <span className="text-slate-500">
+                        {new Date(selectedTicketForQR.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedTicketForQR(null)}
+                      className="btn-secondary flex-1 py-2 text-xs font-bold cursor-pointer"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={handleDownloadQR}
+                      className="btn-primary flex-1 py-2 text-xs font-bold gap-1.5 cursor-pointer flex items-center justify-center"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                      Download
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

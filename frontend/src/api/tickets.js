@@ -30,3 +30,9 @@ export const updateTicketStatus = async (ticketId, status) => {
   return res.data;
 };
 
+// Fetch QR Code for a ticket
+export const getTicketQRCode = async (ticketId) => {
+  const res = await api.get(`/tickets/${ticketId}/qr`);
+  return res.data;
+};
+
