@@ -110,6 +110,7 @@ const login = async (req, res) => {
         email: user.email,
         phone: user.phone,
         age: user.age,
+        role: user.role,
       },
     });
 
