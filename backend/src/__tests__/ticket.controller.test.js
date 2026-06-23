@@ -1,4 +1,4 @@
-const { generateTicket, getMyTickets, getTicketById, cancelTicket } = require('../controllers/ticket.controller');
+const { generateTicket, getMyTickets, getTicketById, cancelTicket, getAppointmentHistory } = require('../controllers/ticket.controller');
 
 jest.mock('../models', () => {
   const mockTicket = {
@@ -6,6 +6,7 @@ jest.mock('../models', () => {
     findAll: jest.fn(),
     findOne: jest.fn(),
     findByPk: jest.fn(),
+    findAndCountAll: jest.fn(),
   };
   const mockDepartment = {
     findByPk: jest.fn(),
@@ -327,5 +328,73 @@ describe('cancelTicket', () => {
     expect(fakeTicket.status).toBe('cancelled');
     expect(fakeTicket.save).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+});
+
+// ── GET APPOINTMENT HISTORY ──────────────────────────────────────────────────
+
+describe('getAppointmentHistory', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('returns 200 with paginated tickets on success', async () => {
+    const fakeTickets = [
+      { id: 't-1', ticketNumber: 'TKT-123', status: 'completed', department: { name: 'Cardiology' } },
+      { id: 't-2', ticketNumber: 'TKT-456', status: 'cancelled', department: { name: 'Pediatrics' } }
+    ];
+    Ticket.findAndCountAll.mockResolvedValue({ count: 2, rows: fakeTickets });
+
+    const req = {
+      query: { page: '1', limit: '10' },
+      user: { id: 'user-1' }
+    };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis()
+    };
+
+    await getAppointmentHistory(req, res);
+
+    expect(Ticket.findAndCountAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: 'user-1',
+          status: ['completed', 'cancelled']
+        },
+        limit: 10,
+        offset: 0
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      tickets: fakeTickets,
+      pagination: {
+        totalItems: 2,
+        totalPages: 1,
+        currentPage: 1,
+        limit: 10
+      }
+    });
+  });
+
+  it('returns 500 on unexpected database error', async () => {
+    Ticket.findAndCountAll.mockRejectedValue(new Error('Database error'));
+
+    const req = {
+      query: {},
+      user: { id: 'user-1' }
+    };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis()
+    };
+
+    await getAppointmentHistory(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      message: 'Server error'
+    });
   });
 });

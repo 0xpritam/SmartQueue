@@ -423,6 +423,51 @@ const cancelTicket = async (req, res) => {
 };
 
 // ==========================================
+// GET APPOINTMENT HISTORY (completed & cancelled)
+// ==========================================
+const getAppointmentHistory = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const offset = (page - 1) * limit;
+
+    const { count, rows } = await Ticket.findAndCountAll({
+      where: {
+        userId: req.user.id,
+        status: ['completed', 'cancelled'],
+      },
+      include: [
+        {
+          model: Department,
+          as: 'department',
+          attributes: ['id', 'name', 'description'],
+        },
+      ],
+      order: [['createdAt', 'DESC']],
+      limit,
+      offset,
+    });
+
+    return res.status(200).json({
+      success: true,
+      tickets: rows,
+      pagination: {
+        totalItems: count,
+        totalPages: Math.ceil(count / limit),
+        currentPage: page,
+        limit,
+      },
+    });
+  } catch (error) {
+    console.error('Get appointment history error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+};
+
+// ==========================================
 // EXPORTS
 // ==========================================
 module.exports = {
@@ -433,5 +478,6 @@ module.exports = {
   updateTicketStatus,
   getTicketQR,
   cancelTicket,
+  getAppointmentHistory,
 };
 

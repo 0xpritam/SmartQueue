@@ -43,3 +43,9 @@ export const cancelTicket = async (ticketId) => {
   return res.data;
 };
 
+// Fetch appointment history (completed/cancelled tickets) with optional pagination
+export const getAppointmentHistory = async (params = {}) => {
+  const res = await api.get('/tickets/history', { params });
+  return res.data;
+};
+

@@ -99,6 +99,12 @@ const login = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
     );
 
+    console.log(
+  "LOGIN USER:",
+  user.email,
+  "ROLE:",
+  user.role
+);
     // 5. Return token and user info
     return res.status(200).json({
       success: true,

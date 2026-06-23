@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PatientNavbar from '../components/PatientNavbar';
 import PatientFooter from '../components/PatientFooter';
 import { useAuth } from '../context/AuthContext';
-import { getMyTickets, getTicketQRCode, cancelTicket } from '../api/tickets';
+import { getMyTickets, getTicketQRCode, cancelTicket, getAppointmentHistory } from '../api/tickets';
 import { getWaitingTickets } from '../api/queues';
 import { getDepartments } from '../api/departments';
 import { useSocket } from '../context/SocketContext';
@@ -18,6 +18,11 @@ const PatientDashboard = () => {
   const [tickets, setTickets] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [deptQueues, setDeptQueues] = useState({}); // deptId -> waitingList
+
+  // Appointment History State
+  const [historyTickets, setHistoryTickets] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState(null);
 
   // UI State
   const [loading, setLoading] = useState(true);
@@ -45,7 +50,11 @@ const PatientDashboard = () => {
   });
 
   const fetchPatientData = async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
+    if (!isSilent) {
+      setLoading(true);
+      setHistoryLoading(true);
+    }
+    let shouldReloadHistory = !isSilent;
     try {
       // 1. Fetch departments
       const deptsRes = await getDepartments();
@@ -55,6 +64,25 @@ const PatientDashboard = () => {
       // 2. Fetch logged-in user's own tickets
       const ticketsRes = await getMyTickets();
       const userTickets = ticketsRes && ticketsRes.success ? ticketsRes.tickets : [];
+
+      // Determine if active tickets list or their statuses changed to update history
+      const prevActiveTickets = tickets.filter(t => t.status === 'waiting' || t.status === 'serving');
+      const nextActiveTickets = userTickets.filter(t => t.status === 'waiting' || t.status === 'serving');
+      if (isSilent) {
+        if (prevActiveTickets.length !== nextActiveTickets.length) {
+          shouldReloadHistory = true;
+        } else {
+          for (let i = 0; i < prevActiveTickets.length; i++) {
+            const prev = prevActiveTickets[i];
+            const next = nextActiveTickets.find(t => t.id === prev.id);
+            if (!next || next.status !== prev.status) {
+              shouldReloadHistory = true;
+              break;
+            }
+          }
+        }
+      }
+
       setTickets(userTickets);
 
       // 3. Fetch waiting queues for active departments to calculate position & wait times
@@ -79,6 +107,21 @@ const PatientDashboard = () => {
       setError('Could not load your dashboard parameters. Re-establishing link...');
     } finally {
       if (!isSilent) setLoading(false);
+    }
+
+    // Load or refresh appointment history if needed
+    if (shouldReloadHistory) {
+      try {
+        const historyRes = await getAppointmentHistory({ page: 1, limit: 10 });
+        const userHistory = historyRes && historyRes.success ? historyRes.tickets : [];
+        setHistoryTickets(userHistory);
+        setHistoryError(null);
+      } catch (err) {
+        console.error('Failed to fetch appointment history:', err);
+        setHistoryError('Could not load appointment history.');
+      } finally {
+        if (!isSilent) setHistoryLoading(false);
+      }
     }
   };
 
@@ -337,7 +380,6 @@ const PatientDashboard = () => {
   };
 
   const activeTickets = tickets.filter(t => t.status === 'waiting' || t.status === 'serving');
-  const pastTickets = tickets.filter(t => t.status === 'completed' || t.status === 'cancelled');
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
@@ -568,35 +610,39 @@ const PatientDashboard = () => {
               )}
             </div>
 
-            {/* Visit History Section */}
+            {/* Appointment History Section */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-200">
-                <h2 className="text-base font-bold text-slate-900 tracking-tight">Booking History</h2>
+                <h2 className="text-base font-bold text-slate-900 tracking-tight">Appointment History</h2>
                 <p className="text-xs text-slate-500">Record of your completed and cancelled visits.</p>
               </div>
 
-              {loading && pastTickets.length === 0 ? (
+              {historyLoading ? (
                 <div className="p-6 space-y-3 animate-pulse">
                   <div className="h-10 bg-slate-100 rounded w-full" />
+                  <div className="h-10 bg-slate-100 rounded w-full" />
                 </div>
-              ) : pastTickets.length === 0 ? (
+              ) : historyError ? (
+                <div className="p-6 text-center text-red-500 text-xs font-semibold">
+                  {historyError}
+                </div>
+              ) : historyTickets.length === 0 ? (
                 <div className="text-center py-12 text-slate-400 text-xs font-semibold">
-                  No historical visits found in this account.
+                  No appointment history available.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider text-[9px]">
-                        <th className="py-3 px-5">Ticket ID</th>
-                        <th className="py-3 px-5">Facility & Division</th>
-                        <th className="py-3 px-5">Booking Date</th>
-                        <th className="py-3 px-5">Final Status</th>
+                        <th className="py-3 px-5">Ticket Number</th>
+                        <th className="py-3 px-5">Department Name</th>
+                        <th className="py-3 px-5">Appointment Date</th>
+                        <th className="py-3 px-5">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium">
-                      {pastTickets.map(t => {
-                        const meta = getTicketMetadata(t.id);
+                      {historyTickets.map(t => {
                         const cleanNum = t.ticketNumber.split('-')[2]?.substring(0, 6) || t.id.substring(0, 6);
                         const dateStr = new Date(t.createdAt).toLocaleDateString([], { 
                           month: 'short', 
@@ -607,9 +653,8 @@ const PatientDashboard = () => {
                         return (
                           <tr key={t.id} className="hover:bg-slate-50/20 transition-colors">
                             <td className="py-4 px-5 font-black text-slate-700 font-mono">TKT-{cleanNum}</td>
-                            <td className="py-4 px-5 space-y-0.5">
-                              <div className="font-bold text-slate-900">{meta.hospitalName}</div>
-                              <div className="text-[10px] text-slate-500 font-semibold">{meta.departmentName}</div>
+                            <td className="py-4 px-5 text-slate-900 font-bold">
+                              {t.department?.name || 'General Clinic'}
                             </td>
                             <td className="py-4 px-5 text-slate-500">{dateStr}</td>
                             <td className="py-4 px-5">{getStatusBadge(t.status)}</td>

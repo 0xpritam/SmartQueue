@@ -8,7 +8,8 @@ const {
   getAllTickets, 
   updateTicketStatus,
   getTicketQR,
-  cancelTicket
+  cancelTicket,
+  getAppointmentHistory
 } = require('../controllers/ticket.controller');
 
 
@@ -22,6 +23,9 @@ router.get('/', authenticate, getAllTickets);
 
 // GET /api/tickets/my - Get all tickets for logged-in user (authenticated)
 router.get('/my', authenticate, getMyTickets);
+
+// GET /api/tickets/history - Get appointment history for logged-in user (authenticated)
+router.get('/history', authenticate, getAppointmentHistory);
 
 // GET /api/tickets/:id - Get ticket by ID (authenticated)
 router.get('/:id', authenticate, getTicketById);
