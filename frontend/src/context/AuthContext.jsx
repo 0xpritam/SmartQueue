@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import api, { login as apiLogin } from '../api/auth';
+import api, { login as apiLogin, adminLogin as apiAdminLogin } from '../api/auth';
 
 const AuthContext = createContext(null);
 
@@ -30,6 +30,18 @@ export const AuthProvider = ({ children }) => {
     return { success: false, message: data.message };
   };
 
+  const adminLogin = async (email, password) => {
+    const data = await apiAdminLogin(email, password);
+    if (data && data.token) {
+      setToken(data.token);
+      setCurrentUser(data.user || null);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user || null));
+      return { success: true, user: data.user };
+    }
+    return { success: false, message: data.message };
+  };
+
   const logout = () => {
     setToken(null);
     setCurrentUser(null);
@@ -43,7 +55,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ token, currentUser, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ token, currentUser, login, logout, updateUser, adminLogin }}>
       {children}
     </AuthContext.Provider>
   );

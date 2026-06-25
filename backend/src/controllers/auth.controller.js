@@ -74,6 +74,7 @@ const login = async (req, res) => {
       });
     }
 
+   
     // 2. Find user by email
     const user = await User.findOne({ where: { email } });
     if (!user) {
@@ -89,6 +90,14 @@ const login = async (req, res) => {
       return res.status(401).json({ 
         success: false, 
         message: 'Invalid email or password.' 
+      });
+    }
+
+    // Verify user.role === 'user'
+    if (user.role !== 'user') {
+      return res.status(403).json({
+        success: false,
+        message: 'Patient access only.'
       });
     }
 
@@ -130,9 +139,89 @@ const login = async (req, res) => {
 };
 
 // ==========================================
+// ADMIN LOGIN CONTROLLER
+// ==========================================
+const adminLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // 1. Validate request body
+    if (!email || !password) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email and password are required.' 
+      });
+    }
+
+    // 2. Find user by email
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid email or password.' 
+      });
+    }
+
+    // 3. Compare password with bcrypt
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid email or password.' 
+      });
+    }
+
+    // 4. Verify user.role === 'admin'
+    if (user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Staff access only.'
+      });
+    }
+
+    // 5. Generate JWT token
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+    );
+
+    console.log(
+      "ADMIN LOGIN USER:",
+      user.email,
+      "ROLE:",
+      user.role
+    );
+
+    // 6. Return token and user info
+    return res.status(200).json({
+      success: true,
+      message: 'Login successful.',
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        age: user.age,
+        role: user.role,
+      },
+    });
+
+  } catch (error) {
+    console.error('Admin login error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'An error occurred during login.' 
+    });
+  }
+};
+
+// ==========================================
 // EXPORTS
 // ==========================================
 module.exports = {
   register,
   login,
+  adminLogin,
 };

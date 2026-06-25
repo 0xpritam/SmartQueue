@@ -29,12 +29,7 @@ const LoginPage = () => {
     try {
       const res = await login(email, password)
       if (res && res.success) {
-        const role = res.user?.role
-        if (role === 'admin') {
-          navigate('/dashboard')
-        } else {
-          navigate('/patient-dashboard')
-        }
+        navigate('/patient-dashboard')
       } else {
         setError(res.message || 'Login failed')
       }

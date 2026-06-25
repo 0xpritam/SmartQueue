@@ -30,4 +30,9 @@ export const login = async (email, password) => {
   return res.data;
 };
 
+export const adminLogin = async (email, password) => {
+  const res = await api.post('/auth/admin-login', { email, password });
+  return res.data;
+};
+
 export default api;

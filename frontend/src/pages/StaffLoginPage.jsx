@@ -8,7 +8,7 @@ const StaffLoginPage = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { login, token, currentUser } = useAuth();
+  const { adminLogin, logout, token, currentUser } = useAuth();
   const navigate = useNavigate();
 
   // If already logged in, redirect to correct dashboard
@@ -26,20 +26,17 @@ const StaffLoginPage = () => {
     e.preventDefault();
     setError(null);
     setLoading(true);
+
     try {
-      const res = await login(email, password);
+      const res = await adminLogin(email, password);
+
       if (res && res.success) {
-        const role = res.user?.role;
-        if (role === 'admin') {
-          navigate('/dashboard');
-        } else {
-          navigate('/patient-dashboard');
-        }
+        navigate("/dashboard");
       } else {
-        setError(res.message || 'Login failed');
+        setError(res.message || "Login failed");
       }
     } catch (err) {
-      setError(err?.response?.data?.message || err.message || 'Login error');
+      setError(err?.response?.data?.message || err.message || "Login error");
     } finally {
       setLoading(false);
     }
