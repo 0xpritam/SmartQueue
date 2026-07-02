@@ -17,3 +17,9 @@ export const getTrendAnalytics = async () => {
   const res = await api.get('/analytics/trends');
   return res.data;
 };
+
+// Fetch dashboard analytics
+export const getDashboardAnalytics = async () => {
+  const res = await api.get('/analytics/dashboard');
+  return res.data;
+};

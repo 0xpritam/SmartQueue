@@ -12,6 +12,7 @@ import QueueStatus from './pages/QueueStatus.jsx'
 import AIAssistant from './pages/AIAssistant.jsx'
 import ProtectedRoute from './routes/ProtectedRoute.jsx'
 import Notifications from './pages/Notifications.jsx'
+import AnalyticsPage from './pages/AnalyticsPage.jsx'
 
 function App() {
   return (
@@ -25,6 +26,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <StaffDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analytics"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AnalyticsPage />
             </ProtectedRoute>
           }
         />

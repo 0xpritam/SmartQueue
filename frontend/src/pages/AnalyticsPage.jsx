@@ -1,28 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getOverviewMetrics, getDepartmentAnalytics, getTrendAnalytics } from '../api/analytics';
+import { useSocket } from '../context/SocketContext';
+import { getDashboardAnalytics } from '../api/analytics';
 import api from '../api/auth';
 
 const AnalyticsPage = () => {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
+  const { socket, connectionStatus } = useSocket();
 
   // State
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const [overview, setOverview] = useState(null);
-  const [departments, setDepartments] = useState([]);
-  const [trends, setTrends] = useState([]);
-
-  // Hover states for tooltips
-  const [hoveredTrendIdx, setHoveredTrendIdx] = useState(null);
-  const [hoveredSlice, setHoveredSlice] = useState(null);
-  const [hoveredDeptIdx, setHoveredDeptIdx] = useState(null);
+  const [data, setData] = useState(null);
 
   // 1. Verify role-based access control and fetch metrics
+  const fetchAnalytics = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
+    try {
+      const res = await getDashboardAnalytics();
+      if (res && res.success) {
+        setData(res.data);
+        setError(null);
+      } else {
+        setError('Failed to load dashboard metrics.');
+      }
+    } catch (err) {
+      console.error('Failed to load analytics dashboard:', err);
+      setError('Failed to fetch analytics. Please make sure you are logged in as operations staff.');
+    } finally {
+      if (!isSilent) setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const initPage = async () => {
       try {
@@ -36,23 +48,10 @@ const AnalyticsPage = () => {
         }
 
         setAuthorized(true);
-
-        // Fetch analytics data
-        const [overviewRes, deptsRes, trendsRes] = await Promise.all([
-          getOverviewMetrics(),
-          getDepartmentAnalytics(),
-          getTrendAnalytics(),
-        ]);
-
-        if (overviewRes.success) setOverview(overviewRes.data);
-        if (deptsRes.success) setDepartments(deptsRes.data);
-        if (trendsRes.success) setTrends(trendsRes.data);
-
-        setError(null);
+        await fetchAnalytics(true);
       } catch (err) {
-        console.error('Failed to load analytics dashboard:', err);
-        setError('Failed to fetch analytics. Please make sure you are logged in as operations staff.');
-        // If 403 or 401, redirect after a short timeout
+        console.error('Auth check failed:', err);
+        setError('Access denied. Admin role required.');
         if (err.response?.status === 403 || err.response?.status === 401) {
           setTimeout(() => navigate('/patient-dashboard'), 2000);
         }
@@ -64,11 +63,39 @@ const AnalyticsPage = () => {
     initPage();
   }, [navigate]);
 
-  if (loading) {
+  // Socket queue update subscription
+  useEffect(() => {
+    if (!socket || !authorized) return;
+
+    const handleUpdate = () => {
+      console.log('[SOCKET] Refreshing analytics dashboard data');
+      fetchAnalytics(true);
+    };
+
+    const handleDirectPayload = (payload) => {
+      console.log('[SOCKET] Direct analytics payload received:', payload);
+      if (payload && payload.success && payload.data) {
+        setData(payload.data);
+        setError(null);
+      }
+    };
+
+    socket.on('queue_updated', handleUpdate);
+    socket.on('ticket_updated', handleUpdate);
+    socket.on('analytics_updated', handleDirectPayload);
+
+    return () => {
+      socket.off('queue_updated', handleUpdate);
+      socket.off('ticket_updated', handleUpdate);
+      socket.off('analytics_updated', handleDirectPayload);
+    };
+  }, [socket, authorized]);
+
+  if (loading && !data) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
         <div className="flex flex-col items-center gap-3">
-          <svg className="h-10 w-10 animate-spin text-blue-600" xmlns="http://www.w3.org/2500/svg" fill="none" viewBox="0 0 24 24">
+          <svg className="h-10 w-10 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
           </svg>
@@ -95,270 +122,15 @@ const AnalyticsPage = () => {
     );
   }
 
-  // Define SVG Chart variables
-  const renderLineChart = () => {
-    if (trends.length === 0) return null;
-
-    const width = 500;
-    const height = 220;
-    const paddingLeft = 40;
-    const paddingRight = 20;
-    const paddingTop = 20;
-    const paddingBottom = 40;
-
-    const graphWidth = width - paddingLeft - paddingRight;
-    const graphHeight = height - paddingTop - paddingBottom;
-
-    // Find max value to scale Y axis
-    const maxVal = Math.max(...trends.map(t => Math.max(t.registered, t.completed)), 6);
-
-    // Compute coordinates
-    const regPoints = trends.map((t, idx) => {
-      const x = paddingLeft + (idx * graphWidth) / (trends.length - 1);
-      const y = height - paddingBottom - (t.registered / maxVal) * graphHeight;
-      return { x, y, value: t.registered, date: t.date };
-    });
-
-    const compPoints = trends.map((t, idx) => {
-      const x = paddingLeft + (idx * graphWidth) / (trends.length - 1);
-      const y = height - paddingBottom - (t.completed / maxVal) * graphHeight;
-      return { x, y, value: t.completed, date: t.date };
-    });
-
-    const regLineD = regPoints.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-    const compLineD = compPoints.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-
-    const regAreaD = `${regLineD} L ${regPoints[regPoints.length - 1].x} ${height - paddingBottom} L ${regPoints[0].x} ${height - paddingBottom} Z`;
-    const compAreaD = `${compLineD} L ${compPoints[compPoints.length - 1].x} ${height - paddingBottom} L ${compPoints[0].x} ${height - paddingBottom} Z`;
-
-    return (
-      <div className="relative">
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
-          {/* Y Axis Grid Lines */}
-          {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
-            const y = height - paddingBottom - ratio * graphHeight;
-            const gridVal = Math.round(ratio * maxVal);
-            return (
-              <g key={idx} className="opacity-40">
-                <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="#e2e8f0" strokeDasharray="3 3" strokeWidth={1} />
-                <text x={paddingLeft - 8} y={y + 4} textAnchor="end" className="text-[10px] fill-slate-400 font-medium">{gridVal}</text>
-              </g>
-            );
-          })}
-
-          {/* X Axis Labels */}
-          {trends.map((t, idx) => {
-            const x = paddingLeft + (idx * graphWidth) / (trends.length - 1);
-            return (
-              <text key={idx} x={x} y={height - 15} textAnchor="middle" className="text-[10px] fill-slate-400 font-medium">
-                {t.date}
-              </text>
-            );
-          })}
-
-          {/* Shaded Areas */}
-          <path d={regAreaD} fill="url(#regGrad)" opacity="0.06" />
-          <path d={compAreaD} fill="url(#compGrad)" opacity="0.06" />
-
-          {/* Lines */}
-          <path d={regLineD} fill="transparent" stroke="#3b82f6" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-          <path d={compLineD} fill="transparent" stroke="#10b981" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-
-          {/* Interactive hover overlays */}
-          {trends.map((t, idx) => {
-            const x = paddingLeft + (idx * graphWidth) / (trends.length - 1);
-            return (
-              <g key={idx} onMouseEnter={() => setHoveredTrendIdx(idx)} onMouseLeave={() => setHoveredTrendIdx(null)}>
-                {/* Transparent bar for easy hovering */}
-                <rect x={x - 15} y={paddingTop} width={30} height={graphHeight} fill="transparent" className="cursor-pointer" />
-                {hoveredTrendIdx === idx && (
-                  <>
-                    <line x1={x} y1={paddingTop} x2={x} y2={height - paddingBottom} stroke="#cbd5e1" strokeWidth={1} strokeDasharray="2 2" />
-                    <circle cx={regPoints[idx].x} cy={regPoints[idx].y} r={5} fill="#3b82f6" stroke="#ffffff" strokeWidth={1.5} className="shadow" />
-                    <circle cx={compPoints[idx].x} cy={compPoints[idx].y} r={5} fill="#10b981" stroke="#ffffff" strokeWidth={1.5} className="shadow" />
-                  </>
-                )}
-              </g>
-            );
-          })}
-
-          {/* Definitions for Gradients */}
-          <defs>
-            <linearGradient id="regGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3b82f6" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-            </linearGradient>
-            <linearGradient id="compGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10b981" />
-              <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-        </svg>
-
-        {/* Hover Tooltip Overlay */}
-        {hoveredTrendIdx !== null && (
-          <div 
-            className="absolute bg-slate-950 text-white text-xs rounded-lg p-2.5 shadow-xl border border-slate-800 z-10 pointer-events-none animate-fadeIn"
-            style={{
-              left: `${(hoveredTrendIdx * graphWidth) / (trends.length - 1) + paddingLeft + 15}px`,
-              top: '20px'
-            }}
-          >
-            <div className="font-bold text-slate-300 border-b border-slate-800 pb-1 mb-1.5">{trends[hoveredTrendIdx].date}</div>
-            <div className="flex items-center gap-2 text-blue-400">
-              <span className="h-2 w-2 rounded-full bg-blue-500" />
-              <span>Registered: <strong>{trends[hoveredTrendIdx].registered}</strong></span>
-            </div>
-            <div className="flex items-center gap-2 text-emerald-400 mt-0.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              <span>Completed: <strong>{trends[hoveredTrendIdx].completed}</strong></span>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderDonutChart = () => {
-    if (!overview || !overview.statusDistribution) return null;
-
-    const { waiting, serving, completed, cancelled } = overview.statusDistribution;
-    const total = waiting + serving + completed + cancelled;
-
-    const radius = 50;
-    const circumference = 2 * Math.PI * radius; // ~314.16
-
-    let accumulatedPercent = 0;
-    const slices = [
-      { key: 'waiting', name: 'Waiting', value: waiting, color: '#3b82f6', hoverColor: '#2563eb' },
-      { key: 'serving', name: 'Serving', value: serving, color: '#eab308', hoverColor: '#ca8a04' },
-      { key: 'completed', name: 'Completed', value: completed, color: '#10b981', hoverColor: '#059669' },
-      { key: 'cancelled', name: 'Cancelled', value: cancelled, color: '#ef4444', hoverColor: '#dc2626' }
-    ].map(slice => {
-      const percent = total > 0 ? slice.value / total : 0;
-      const strokeDashoffset = circumference - percent * circumference;
-      const strokeDasharray = `${circumference} ${circumference}`;
-      const rotation = accumulatedPercent * 360;
-      accumulatedPercent += percent;
-      return {
-        ...slice,
-        percent,
-        strokeDasharray,
-        strokeDashoffset,
-        rotation
-      };
-    });
-
-    return (
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-8 py-2">
-        <div className="relative h-40 w-40">
-          <svg viewBox="0 0 160 160" className="w-full h-full">
-            {slices.map((slice, idx) => {
-              if (slice.percent === 0) return null;
-              const isHovered = hoveredSlice === slice.key;
-              return (
-                <circle
-                  key={idx}
-                  cx="80"
-                  cy="80"
-                  r={radius}
-                  fill="transparent"
-                  stroke={isHovered ? slice.hoverColor : slice.color}
-                  strokeWidth={isHovered ? 24 : 18}
-                  strokeDasharray={slice.strokeDasharray}
-                  strokeDashoffset={slice.strokeDashoffset}
-                  transform={`rotate(${slice.rotation - 90} 80 80)`}
-                  onMouseEnter={() => setHoveredSlice(slice.key)}
-                  onMouseLeave={() => setHoveredSlice(null)}
-                  className="transition-all duration-300 cursor-pointer origin-center"
-                />
-              );
-            })}
-            {/* Center Text */}
-            <g transform="translate(80, 80)" className="pointer-events-none">
-              <text textAnchor="middle" y="-2" className="text-[10px] font-bold fill-slate-400 uppercase tracking-wider">Total Tickets</text>
-              <text textAnchor="middle" y="14" className="text-xl font-extrabold fill-slate-900 leading-none">{total}</text>
-            </g>
-          </svg>
-        </div>
-
-        {/* Legend */}
-        <div className="flex-grow space-y-2.5 w-full sm:w-auto">
-          {slices.map((slice, idx) => (
-            <div 
-              key={idx}
-              className={`flex items-center justify-between p-2 rounded-lg transition-colors border ${
-                hoveredSlice === slice.key ? 'bg-slate-50 border-slate-200' : 'border-transparent'
-              }`}
-              onMouseEnter={() => setHoveredSlice(slice.key)}
-              onMouseLeave={() => setHoveredSlice(null)}
-            >
-              <div className="flex items-center gap-2.5 text-xs font-semibold text-slate-700">
-                <span className="h-3 w-3 rounded-full" style={{ backgroundColor: slice.color }} />
-                <span>{slice.name}</span>
-              </div>
-              <div className="text-right">
-                <span className="text-xs font-extrabold text-slate-900 block">{slice.value}</span>
-                <span className="text-[9px] font-bold text-slate-400 block uppercase">
-                  {Math.round(slice.percent * 100)}%
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  const renderBarChart = () => {
-    if (departments.length === 0) {
-      return <div className="text-center text-xs text-slate-400 py-10 font-medium">No departments registered.</div>;
-    }
-
-    const maxServed = Math.max(...departments.map(d => d.patientsServed), 5);
-
-    return (
-      <div className="space-y-4 py-2">
-        {departments.map((dept, idx) => {
-          const barWidthPercent = (dept.patientsServed / maxServed) * 100;
-          const isHovered = hoveredDeptIdx === idx;
-
-          return (
-            <div 
-              key={idx}
-              className={`space-y-1.5 p-2.5 rounded-lg border transition-all duration-200 ${
-                isHovered ? 'bg-slate-50 border-slate-200' : 'border-transparent'
-              }`}
-              onMouseEnter={() => setHoveredDeptIdx(idx)}
-              onMouseLeave={() => setHoveredDeptIdx(null)}
-            >
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-800">{dept.departmentName}</span>
-                <div className="flex items-center gap-3">
-                  <span className="text-slate-500 font-medium">
-                    Served: <strong className="text-slate-900 font-extrabold">{dept.patientsServed}</strong>
-                  </span>
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-purple-50 border border-purple-100 text-[9px] font-bold text-purple-700 uppercase tracking-wide">
-                    Avg Wait: {dept.avgWaitTime}m
-                  </span>
-                </div>
-              </div>
-
-              {/* Progress Bar Container */}
-              <div className="h-3.5 bg-slate-100 rounded-full overflow-hidden w-full relative">
-                <div 
-                  className={`h-full rounded-full transition-all duration-500 bg-gradient-to-r from-blue-500 to-indigo-500 ${
-                    isHovered ? 'brightness-95 shadow-inner' : ''
-                  }`}
-                  style={{ width: `${Math.max(3, barWidthPercent)}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
+  // Fallback to empty data state if calculations yield nothing
+  const isEmptyState = !data || (
+    data.totalTicketsToday === 0 &&
+    data.waiting === 0 &&
+    data.inProgress === 0 &&
+    data.completed === 0 &&
+    data.cancelled === 0 &&
+    (!data.departments || data.departments.length === 0)
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
@@ -372,12 +144,24 @@ const AnalyticsPage = () => {
               </svg>
             </div>
             <div>
-              <h1 className="text-lg font-extrabold tracking-tight block leading-tight">Operational Analytics</h1>
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">SmartQueue Control Room</span>
+              <h1 className="text-lg font-extrabold tracking-tight block leading-tight">Queue Analytics Dashboard</h1>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Real-Time Operational Monitoring</span>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 text-[9px] font-bold uppercase tracking-wider border border-slate-700 text-slate-300">
+              <span className={`h-1.5 w-1.5 rounded-full ${
+                connectionStatus === 'connected' ? 'bg-emerald-500 animate-pulse' :
+                connectionStatus === 'reconnecting' ? 'bg-amber-500 animate-ping' :
+                'bg-slate-450'
+              }`} />
+              <span>
+                {connectionStatus === 'connected' ? 'Live connected' :
+                 connectionStatus === 'reconnecting' ? 'Reconnecting' :
+                 'Offline (Polling)'}
+              </span>
+            </div>
             <button 
               onClick={() => navigate('/dashboard')}
               className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold py-1.5 px-3 rounded-md transition-colors cursor-pointer flex items-center gap-1.5"
@@ -391,136 +175,198 @@ const AnalyticsPage = () => {
         </div>
       </header>
 
-      {/* Main Grid */}
+      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full space-y-8">
         
-        {/* Overview Cards Grid */}
-        {overview && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            
-            {/* Total Patients */}
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 p-5 text-white shadow-lg border border-blue-400/20">
-              <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-blue-100 uppercase tracking-wider block">Total Patients Today</span>
-                  <span className="text-3xl font-extrabold block leading-none">{overview.totalPatientsToday}</span>
-                </div>
-                <div className="p-2.5 bg-white/10 rounded-lg text-white">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-              </div>
-              <p className="text-[10px] text-blue-200 mt-4 font-semibold">Total queue tickets generated since 00:00</p>
-            </div>
-
-            {/* Active Queues */}
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 p-5 text-white shadow-lg border border-amber-400/20">
-              <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-amber-100 uppercase tracking-wider block">Active Queues</span>
-                  <span className="text-3xl font-extrabold block leading-none">{overview.activeQueues}</span>
-                </div>
-                <div className="p-2.5 bg-white/10 rounded-lg text-white">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                  </svg>
-                </div>
-              </div>
-              <p className="text-[10px] text-amber-200 mt-4 font-semibold">Departments actively serving queue tokens</p>
-            </div>
-
-            {/* Completed Visits */}
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 p-5 text-white shadow-lg border border-emerald-400/20">
-              <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-emerald-100 uppercase tracking-wider block">Completed Visits Today</span>
-                  <span className="text-3xl font-extrabold block leading-none">{overview.completedVisitsToday}</span>
-                </div>
-                <div className="p-2.5 bg-white/10 rounded-lg text-white">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-              <p className="text-[10px] text-emerald-200 mt-4 font-semibold">Consultations successfully processed today</p>
-            </div>
-
-            {/* Avg Wait Time */}
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 p-5 text-white shadow-lg border border-purple-400/20">
-              <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-purple-100 uppercase tracking-wider block">Average Wait Time</span>
-                  <span className="text-3xl font-extrabold block leading-none">
-                    {overview.avgWaitTime} <span className="text-base font-normal">mins</span>
-                  </span>
-                </div>
-                <div className="p-2.5 bg-white/10 rounded-lg text-white">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-              <p className="text-[10px] text-purple-200 mt-4 font-semibold">Average wait duration in queue today</p>
-            </div>
-
+        {/* Error Alert Box */}
+        {error && (
+          <div className="p-3.5 bg-red-50 border border-red-200 rounded-lg flex gap-3 text-xs text-red-700 font-semibold animate-fadeIn">
+            <svg className="h-4 w-4 shrink-0 text-red-500" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>{error}</div>
           </div>
         )}
 
-        {/* Charts Grid Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fadeIn">
-          
-          {/* Trends Line Chart */}
-          <div className="lg:col-span-8 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-            <div className="mb-4">
-              <h2 className="text-base font-extrabold text-slate-900 tracking-tight">Daily Visits & Registration Trends</h2>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">Monitoring tickets booked and completed visits over the last 7 days</p>
+        {isEmptyState ? (
+          <div className="bg-white border border-slate-200 rounded-xl p-12 text-center max-w-md mx-auto shadow-sm space-y-4 animate-fadeIn">
+            <div className="h-16 w-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto border border-blue-100 shadow-inner">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
             </div>
-            
-            {/* Visual Indicators / Legends */}
-            <div className="flex items-center gap-4 mb-4">
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                <span className="h-2.5 w-5 rounded bg-blue-500 inline-block" />
-                <span>Registered Patients</span>
+            <h2 className="text-lg font-bold text-slate-800">No Operations Data Today</h2>
+            <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+              There are no active tickets or department metrics compiled for today yet. Use the staff dashboard to book tickets and call patients to see metrics populate in real-time.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Dashboard Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5">
+              
+              {/* Total Tickets Today */}
+              <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-xl p-5 shadow-md border border-blue-500/20 relative overflow-hidden transition-all hover:scale-[1.02] duration-200">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-blue-100 uppercase tracking-wider block">Total Today</span>
+                    <span className="text-2xl font-black block leading-none">{data.totalTicketsToday}</span>
+                  </div>
+                  <div className="p-2 bg-white/10 rounded-lg text-white shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="text-[9px] text-blue-200/90 font-bold mt-5 tracking-wide">Tickets generated today</div>
               </div>
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                <span className="h-2.5 w-5 rounded bg-emerald-500 inline-block" />
-                <span>Completed Consultations</span>
+
+              {/* Waiting */}
+              <div className="bg-gradient-to-br from-sky-500 to-blue-600 text-white rounded-xl p-5 shadow-md border border-sky-400/20 relative overflow-hidden transition-all hover:scale-[1.02] duration-200">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-sky-100 uppercase tracking-wider block">Waiting</span>
+                    <span className="text-2xl font-black block leading-none">{data.waiting}</span>
+                  </div>
+                  <div className="p-2 bg-white/10 rounded-lg text-white shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="text-[9px] text-sky-200/90 font-bold mt-5 tracking-wide">Patients in queue</div>
               </div>
+
+              {/* In Progress */}
+              <div className="bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-xl p-5 shadow-md border border-amber-400/20 relative overflow-hidden transition-all hover:scale-[1.02] duration-200">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-amber-100 uppercase tracking-wider block">In Progress</span>
+                    <span className="text-2xl font-black block leading-none">{data.inProgress}</span>
+                  </div>
+                  <div className="p-2 bg-white/10 rounded-lg text-white shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="text-[9px] text-amber-200/90 font-bold mt-5 tracking-wide">Currently being served</div>
+              </div>
+
+              {/* Completed */}
+              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-xl p-5 shadow-md border border-emerald-400/20 relative overflow-hidden transition-all hover:scale-[1.02] duration-200">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-emerald-100 uppercase tracking-wider block">Completed</span>
+                    <span className="text-2xl font-black block leading-none">{data.completed}</span>
+                  </div>
+                  <div className="p-2 bg-white/10 rounded-lg text-white shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="text-[9px] text-emerald-200/90 font-bold mt-5 tracking-wide">Consultations finished</div>
+              </div>
+
+              {/* Cancelled */}
+              <div className="bg-gradient-to-br from-rose-500 to-red-600 text-white rounded-xl p-5 shadow-md border border-rose-400/20 relative overflow-hidden transition-all hover:scale-[1.02] duration-200">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-rose-100 uppercase tracking-wider block">Cancelled</span>
+                    <span className="text-2xl font-black block leading-none">{data.cancelled}</span>
+                  </div>
+                  <div className="p-2 bg-white/10 rounded-lg text-white shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="text-[9px] text-rose-200/90 font-bold mt-5 tracking-wide">Tickets cancelled today</div>
+              </div>
+
+              {/* Average Waiting Time */}
+              <div className="bg-gradient-to-br from-purple-600 to-indigo-800 text-white rounded-xl p-5 shadow-md border border-purple-500/20 relative overflow-hidden transition-all hover:scale-[1.02] duration-200">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-purple-100 uppercase tracking-wider block">Avg Wait Time</span>
+                    <span className="text-2xl font-black block leading-none">
+                      {data.averageWaitingTime} <span className="text-xs font-semibold">mins</span>
+                    </span>
+                  </div>
+                  <div className="p-2 bg-white/10 rounded-lg text-white shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="text-[9px] text-purple-200/90 font-bold mt-5 tracking-wide">Average wait in queue today</div>
+              </div>
+
             </div>
 
-            <div className="flex-grow flex items-center justify-center">
-              {renderLineChart()}
+            {/* Department Summary Table */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden animate-fadeIn">
+              <div className="bg-white border-b border-slate-200 px-6 py-4">
+                <h2 className="text-sm font-bold text-slate-900 tracking-tight">Department Traffic & Operations</h2>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Live statistics and throughput metrics by clinical unit</span>
+              </div>
+              
+              {(!data.departments || data.departments.length === 0) ? (
+                <div className="text-center py-12 text-slate-400 text-xs font-semibold">
+                  No department statistics registered for today.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                        <th className="py-3.5 px-6">Department ID</th>
+                        <th className="py-3.5 px-6">Department Name</th>
+                        <th className="py-3.5 px-6">Patients Waiting</th>
+                        <th className="py-3.5 px-6">Completed Today</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                      {data.departments.map((dept) => (
+                        <tr key={dept.departmentId} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="py-4 px-6 text-slate-455 font-mono text-[10.5px] select-all">{dept.departmentId}</td>
+                          <td className="py-4 px-6 font-bold text-slate-800">{dept.departmentName}</td>
+                          <td className="py-4 px-6">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-bold ${
+                              dept.waiting > 0 
+                                ? 'bg-blue-50 border border-blue-200 text-blue-700' 
+                                : 'bg-slate-100 border border-slate-200 text-slate-400'
+                            }`}>
+                              {dept.waiting} waiting
+                            </span>
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-bold ${
+                              dept.completedToday > 0 
+                                ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' 
+                                : 'bg-slate-100 border border-slate-200 text-slate-400'
+                            }`}>
+                              {dept.completedToday} completed
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          </div>
-
-          {/* Ticket Status Distribution (Donut Chart) */}
-          <div className="lg:col-span-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-            <div className="mb-4">
-              <h2 className="text-base font-extrabold text-slate-900 tracking-tight">Ticket Status Mix</h2>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">Breakdown of operational state allocations across all tickets</p>
-            </div>
-
-            <div className="flex-grow flex flex-col justify-center">
-              {renderDonutChart()}
-            </div>
-          </div>
-
-        </div>
-
-        {/* Department Analytics Card */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm animate-fadeIn">
-          <div className="mb-6">
-            <h2 className="text-base font-extrabold text-slate-900 tracking-tight">Department Traffic & Wait Metrics</h2>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">Summary of patients served and estimated queue wait times grouped by department</p>
-          </div>
-
-          <div>
-            {renderBarChart()}
-          </div>
-        </div>
+          </>
+        )}
 
       </main>
+
+      {/* Footer */}
+      <footer className="bg-slate-100 border-t border-slate-200 py-4 text-center text-[10px] text-slate-400 uppercase tracking-wider mt-auto">
+        Operations Control Room © 2026 SmartQueue System. All database systems connected.
+      </footer>
     </div>
   );
 };

@@ -41,6 +41,10 @@ const generateTicket = async (req, res) => {
     if (io) {
       io.to(`department_${departmentId}`).emit('queue_updated', { departmentId });
 
+      // Trigger socket analytics update
+      const { emitAnalyticsUpdate } = require('./analytics.controller');
+      emitAnalyticsUpdate(io);
+
       // Asynchronously trigger booking notification
       createNotification(io, {
         userId: req.user.id,
@@ -180,6 +184,9 @@ const updateTicketStatus = async (req, res) => {
       });
     }
 
+    if (status === 'serving') {
+      ticket.calledAt = new Date();
+    }
     ticket.status = status;
     await ticket.save();
 
@@ -188,6 +195,10 @@ const updateTicketStatus = async (req, res) => {
     if (io) {
       io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
       io.to(`department_${ticket.departmentId}`).emit('queue_updated', { departmentId: ticket.departmentId });
+
+      // Trigger socket analytics update
+      const { emitAnalyticsUpdate } = require('./analytics.controller');
+      emitAnalyticsUpdate(io);
 
       // Handle queue shifts asynchronously
       if (oldStatus === 'waiting' && status !== 'waiting') {
@@ -394,6 +405,10 @@ const cancelTicket = async (req, res) => {
       io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
       // Emit queue_updated to the department room
       io.to(`department_${departmentId}`).emit('queue_updated', { departmentId });
+
+      // Trigger socket analytics update
+      const { emitAnalyticsUpdate } = require('./analytics.controller');
+      emitAnalyticsUpdate(io);
 
       // Call handleQueuePositionChanges asynchronously
       handleQueuePositionChanges(io, departmentId, ticketsBefore, ticketsAfter);

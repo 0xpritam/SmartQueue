@@ -75,6 +75,7 @@ const callNextPatient = async (req, res) => {
     });
 
     ticket.status = 'serving';
+    ticket.calledAt = new Date();
     await ticket.save();
 
     // Emit socket updates
@@ -82,6 +83,10 @@ const callNextPatient = async (req, res) => {
     if (io) {
       io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
       io.to(`department_${departmentId}`).emit('queue_updated', { departmentId });
+
+      // Trigger socket analytics update
+      const { emitAnalyticsUpdate } = require('./analytics.controller');
+      emitAnalyticsUpdate(io);
 
       // Run queue shift calculation asynchronously
       Ticket.findAll({
@@ -138,6 +143,10 @@ const completeCurrentPatient = async (req, res) => {
     if (io) {
       io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
       io.to(`department_${departmentId}`).emit('queue_updated', { departmentId });
+
+      // Trigger socket analytics update
+      const { emitAnalyticsUpdate } = require('./analytics.controller');
+      emitAnalyticsUpdate(io);
 
       // Asynchronously send status change notification to this user
       createNotification(io, {

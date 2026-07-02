@@ -30,6 +30,11 @@ module.exports = (sequelize) => {
         defaultValue: 'waiting',
       },
 
+      calledAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+
       userId: {
         type: DataTypes.UUID,
         allowNull: true,

@@ -1,4 +1,4 @@
-const { User, Ticket, Department, Notification } = require('../models');
+const { sequelize, User, Ticket, Department, Notification } = require('../models');
 const { Op } = require('sequelize');
 
 // Helper to check if user has admin/staff role
@@ -282,8 +282,155 @@ const getTrends = async (req, res) => {
   }
 };
 
+const calculateDashboardData = async () => {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  // 1. Core aggregate counts
+  const totalTicketsToday = await Ticket.count({
+    where: {
+      createdAt: { [Op.gte]: todayStart }
+    }
+  });
+
+  const waiting = await Ticket.count({
+    where: { status: 'waiting' }
+  });
+
+  const inProgress = await Ticket.count({
+    where: { status: 'serving' }
+  });
+
+  const completed = await Ticket.count({
+    where: {
+      status: 'completed',
+      updatedAt: { [Op.gte]: todayStart }
+    }
+  });
+
+  const cancelled = await Ticket.count({
+    where: {
+      status: 'cancelled',
+      updatedAt: { [Op.gte]: todayStart }
+    }
+  });
+
+  // 2. Average waiting time today (in minutes) using SQL aggregates on Ticket model
+  // Wait time = calledAt - createdAt (for tickets that were called to be served, and called today)
+  const avgWaitResult = await Ticket.findOne({
+    attributes: [
+      [
+        sequelize.fn(
+          'AVG',
+          sequelize.literal(
+            sequelize.options.dialect === 'sqlite'
+              ? "strftime('%s', Ticket.calledAt) - strftime('%s', Ticket.createdAt)"
+              : "TIMESTAMPDIFF(SECOND, Ticket.createdAt, Ticket.calledAt)"
+          )
+        ),
+        'avgWait'
+      ]
+    ],
+    where: {
+      calledAt: { [Op.gte]: todayStart }
+    },
+    raw: true
+  });
+
+  const avgWaitSeconds = avgWaitResult ? parseFloat(avgWaitResult.avgWait || 0) : 0;
+  const averageWaitingTime = Math.round(avgWaitSeconds / 60);
+
+  // 3. Departments summary
+  const depts = await Department.findAll({
+    attributes: ['id', 'name'],
+    raw: true
+  });
+
+  // Count waiting tickets per department
+  const waitingCounts = await Ticket.findAll({
+    attributes: [
+      'departmentId',
+      [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+    ],
+    where: { status: 'waiting' },
+    group: ['departmentId'],
+    raw: true
+  });
+
+  // Count completed tickets today per department
+  const completedTodayCounts = await Ticket.findAll({
+    attributes: [
+      'departmentId',
+      [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+    ],
+    where: {
+      status: 'completed',
+      updatedAt: { [Op.gte]: todayStart }
+    },
+    group: ['departmentId'],
+    raw: true
+  });
+
+  const waitingMap = new Map(waitingCounts.map(item => [item.departmentId, parseInt(item.count || 0, 10)]));
+  const completedTodayMap = new Map(completedTodayCounts.map(item => [item.departmentId, parseInt(item.count || 0, 10)]));
+
+  const departments = depts.map(d => ({
+    departmentId: d.id,
+    departmentName: d.name,
+    waiting: waitingMap.get(d.id) || 0,
+    completedToday: completedTodayMap.get(d.id) || 0
+  }));
+
+  return {
+    totalTicketsToday,
+    waiting,
+    inProgress,
+    completed,
+    cancelled,
+    averageWaitingTime,
+    departments
+  };
+};
+
+const getDashboard = async (req, res) => {
+  try {
+    const isStaff = await checkStaffRole(req.user.id);
+    if (!isStaff) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Staff only.',
+      });
+    }
+
+    const data = await calculateDashboardData();
+
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error('Get dashboard analytics error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+};
+
+const emitAnalyticsUpdate = async (io) => {
+  if (!io) return;
+  try {
+    const data = await calculateDashboardData();
+    io.emit('analytics_updated', { success: true, data });
+  } catch (error) {
+    console.error('Emit analytics update error:', error);
+  }
+};
+
 module.exports = {
   getOverview,
   getDepartmentsAnalytics,
   getTrends,
+  getDashboard,
+  emitAnalyticsUpdate,
 };
