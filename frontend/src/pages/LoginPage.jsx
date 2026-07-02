@@ -8,15 +8,13 @@ const LoginPage = () => {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const { login, token, currentUser } = useAuth()
+  const { login, logout, token, currentUser } = useAuth()
   const navigate = useNavigate()
 
   // If already logged in, redirect to correct dashboard
   useEffect(() => {
     if (token && currentUser && currentUser.role) {
-      if (currentUser.role === 'admin') {
-        navigate('/dashboard', { replace: true })
-      } else {
+      if (currentUser.role === 'user') {
         navigate('/patient-dashboard', { replace: true })
       }
     }
@@ -38,6 +36,41 @@ const LoginPage = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (token && currentUser && currentUser.role === 'admin') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          {/* Brand Header */}
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="h-10 w-10 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+            </div>
+            <div>
+              <span className="text-xl font-bold tracking-tight text-slate-900 block leading-tight">SmartQueue</span>
+              <span className="text-xs text-slate-500 font-medium block">Patient Platform</span>
+            </div>
+          </div>
+        </div>
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="card-container text-center">
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Mismatched Session</h2>
+            <p className="text-sm text-slate-500 mb-6">
+              You are currently logged in as a Hospital Staff member. To access the Patient Portal, please log out first.
+            </p>
+            <button
+              onClick={() => logout()}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer"
+            >
+              Log Out & Continue
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

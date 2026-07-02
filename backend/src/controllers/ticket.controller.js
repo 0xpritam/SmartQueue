@@ -1,7 +1,7 @@
 const { Ticket, Department, User } = require('../models');
 const QRCode = require('qrcode');
 const { v4: uuidv4 } = require('uuid');
-const { createNotification, handleQueuePositionChanges, getCleanTicketNumber } = require('../utils/notification');
+const { createNotification, handleQueuePositionChanges, getCleanTicketNumber, sendBookingNotification, sendCancellationNotification, sendCompletionNotification, sendServingNotification } = require('../utils/notification');
 
 // ==========================================
 // GENERATE TICKET
@@ -46,13 +46,7 @@ const generateTicket = async (req, res) => {
       emitAnalyticsUpdate(io);
 
       // Asynchronously trigger booking notification
-      createNotification(io, {
-        userId: req.user.id,
-        ticketId: ticket.id,
-        title: 'Ticket Booked',
-        message: `Your ticket ${getCleanTicketNumber(ticket)} has been booked successfully.`,
-        type: 'queue_update',
-      }).catch((err) => console.error('[NOTIFICATION ERROR] Booked notification failed:', err));
+      sendBookingNotification(io, ticket, req.user.id).catch((err) => console.error('[NOTIFICATION ERROR] Booked notification failed:', err));
     }
 
     return res.status(201).json({
@@ -212,29 +206,11 @@ const updateTicketStatus = async (req, res) => {
 
       // Send status change notification asynchronously
       if (status === 'serving') {
-        createNotification(io, {
-          userId: ticket.userId,
-          ticketId: ticket.id,
-          title: 'Now Serving',
-          message: 'You are now being served.',
-          type: 'serving',
-        }).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
+        sendServingNotification(io, ticket).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
       } else if (status === 'completed') {
-        createNotification(io, {
-          userId: ticket.userId,
-          ticketId: ticket.id,
-          title: 'Visit Completed',
-          message: 'Your visit has been completed.',
-          type: 'completed',
-        }).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
+        sendCompletionNotification(io, ticket).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
       } else if (status === 'cancelled') {
-        createNotification(io, {
-          userId: ticket.userId,
-          ticketId: ticket.id,
-          title: 'Ticket Cancelled',
-          message: `Your ticket ${getCleanTicketNumber(ticket)} has been cancelled.`,
-          type: 'queue_update',
-        }).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
+        sendCancellationNotification(io, ticket).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
       }
     }
 
@@ -414,13 +390,7 @@ const cancelTicket = async (req, res) => {
       handleQueuePositionChanges(io, departmentId, ticketsBefore, ticketsAfter);
 
       // Create cancellation notification
-      createNotification(io, {
-        userId: ticket.userId,
-        ticketId: ticket.id,
-        title: 'Ticket Cancelled',
-        message: `Your ticket ${getCleanTicketNumber(ticket)} has been cancelled.`,
-        type: 'queue_update',
-      }).catch((err) => console.error('[NOTIFICATION ERROR] Cancellation notification failed:', err));
+      sendCancellationNotification(io, ticket).catch((err) => console.error('[NOTIFICATION ERROR] Cancellation notification failed:', err));
     }
 
     return res.status(200).json({

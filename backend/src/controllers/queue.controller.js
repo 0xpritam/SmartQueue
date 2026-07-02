@@ -1,5 +1,5 @@
 const { Ticket } = require('../models');
-const { createNotification, handleQueuePositionChanges } = require('../utils/notification');
+const { createNotification, handleQueuePositionChanges, sendServingNotification, sendCompletionNotification } = require('../utils/notification');
 
 const getCurrentTicket = async (req, res) => {
   try {
@@ -97,13 +97,7 @@ const callNextPatient = async (req, res) => {
       }).catch((err) => console.error('[NOTIFICATION ERROR] Fetching ticketsAfter failed:', err));
 
       // Asynchronously send status change notification to this user
-      createNotification(io, {
-        userId: ticket.userId,
-        ticketId: ticket.id,
-        title: 'Now Serving',
-        message: 'You are now being served.',
-        type: 'serving',
-      }).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
+      sendServingNotification(io, ticket).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
     }
 
     return res.status(200).json({
@@ -149,13 +143,7 @@ const completeCurrentPatient = async (req, res) => {
       emitAnalyticsUpdate(io);
 
       // Asynchronously send status change notification to this user
-      createNotification(io, {
-        userId: ticket.userId,
-        ticketId: ticket.id,
-        title: 'Visit Completed',
-        message: 'Your visit has been completed.',
-        type: 'completed',
-      }).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
+      sendCompletionNotification(io, ticket).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
     }
 
     return res.status(200).json({

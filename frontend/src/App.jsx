@@ -24,7 +24,7 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['admin']} fallbackPath="/staff-login">
               <StaffDashboard />
             </ProtectedRoute>
           }
@@ -32,7 +32,7 @@ function App() {
         <Route
           path="/analytics"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['admin']} fallbackPath="/staff-login">
               <AnalyticsPage />
             </ProtectedRoute>
           }

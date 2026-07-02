@@ -78,6 +78,126 @@ const createNotification = async (io, { userId, ticketId, title, message, type }
   }
 };
 
+// Orchestration Layer Functions
+
+const sendBookingNotification = async (io, ticket, userId) => {
+  const notificationPromise = createNotification(io, {
+    userId,
+    ticketId: ticket.id,
+    title: 'Ticket Booked',
+    message: `Your ticket ${getCleanTicketNumber(ticket)} has been booked successfully.`,
+    type: 'queue_update',
+  });
+
+  const { User, Department } = require('../models');
+  Promise.all([
+    User.findByPk(userId),
+    Department.findByPk(ticket.departmentId),
+  ]).then(([user, department]) => {
+    if (user && department) {
+      const { sendBookingEmail } = require('../services/email.service');
+      sendBookingEmail(user, department, ticket).catch((err) => {
+        console.error('[EMAIL ERROR] Failed to send booking email:', err);
+      });
+    }
+  }).catch((err) => {
+    console.error('[EMAIL ERROR] Pre-fetch for booking email failed:', err);
+  });
+
+  return notificationPromise;
+};
+
+const sendCancellationNotification = async (io, ticket) => {
+  const notificationPromise = createNotification(io, {
+    userId: ticket.userId,
+    ticketId: ticket.id,
+    title: 'Ticket Cancelled',
+    message: `Your ticket ${getCleanTicketNumber(ticket)} has been cancelled.`,
+    type: 'queue_update',
+  });
+
+  const { User, Department } = require('../models');
+  Promise.all([
+    User.findByPk(ticket.userId),
+    Department.findByPk(ticket.departmentId),
+  ]).then(([user, department]) => {
+    if (user && department) {
+      const { sendCancellationEmail } = require('../services/email.service');
+      sendCancellationEmail(user, department, ticket).catch((err) => {
+        console.error('[EMAIL ERROR] Failed to send cancellation email:', err);
+      });
+    }
+  }).catch((err) => {
+    console.error('[EMAIL ERROR] Pre-fetch for cancellation email failed:', err);
+  });
+
+  return notificationPromise;
+};
+
+const sendCompletionNotification = async (io, ticket) => {
+  const notificationPromise = createNotification(io, {
+    userId: ticket.userId,
+    ticketId: ticket.id,
+    title: 'Visit Completed',
+    message: 'Your visit has been completed.',
+    type: 'completed',
+  });
+
+  const { User, Department } = require('../models');
+  Promise.all([
+    User.findByPk(ticket.userId),
+    Department.findByPk(ticket.departmentId),
+  ]).then(([user, department]) => {
+    if (user && department) {
+      const { sendCompletionEmail } = require('../services/email.service');
+      sendCompletionEmail(user, department, ticket).catch((err) => {
+        console.error('[EMAIL ERROR] Failed to send completion email:', err);
+      });
+    }
+  }).catch((err) => {
+    console.error('[EMAIL ERROR] Pre-fetch for completion email failed:', err);
+  });
+
+  return notificationPromise;
+};
+
+const sendServingNotification = async (io, ticket) => {
+  return createNotification(io, {
+    userId: ticket.userId,
+    ticketId: ticket.id,
+    title: 'Now Serving',
+    message: 'You are now being served.',
+    type: 'serving',
+  });
+};
+
+const sendQueueReminderNotification = async (io, ticket, currentPosition) => {
+  const notificationPromise = createNotification(io, {
+    userId: ticket.userId,
+    ticketId: ticket.id,
+    title: 'Queue Reminder',
+    message: 'Your turn is approaching. Please arrive at the hospital.',
+    type: 'queue_update',
+  });
+
+  const { User, Department } = require('../models');
+  Promise.all([
+    User.findByPk(ticket.userId),
+    Department.findByPk(ticket.departmentId),
+  ]).then(([user, department]) => {
+    if (user && department) {
+      const { sendQueueReminderEmail } = require('../services/email.service');
+      sendQueueReminderEmail(user, department, ticket, currentPosition).catch((err) => {
+        console.error('[EMAIL ERROR] Failed to send queue reminder email:', err);
+      });
+    }
+  }).catch((err) => {
+    console.error('[EMAIL ERROR] Pre-fetch for queue reminder email failed:', err);
+  });
+
+  return notificationPromise;
+};
+
 // Check queue position changes and notify affected users
 const handleQueuePositionChanges = async (io, departmentId, ticketsBefore, ticketsAfter) => {
   try {
@@ -99,6 +219,11 @@ const handleQueuePositionChanges = async (io, departmentId, ticketsBefore, ticke
             message: 'You are next in the queue.',
             type: 'queue_update',
           }).catch((err) => console.error('[NOTIFICATION ERROR] Async queue-next notification error:', err));
+        } else if (indexAfter === 3) {
+          // Queue Reminder (3 patients ahead, i.e. 4th in queue)
+          sendQueueReminderNotification(io, ticket, 4).catch((err) => {
+            console.error('[NOTIFICATION ERROR] Async queue-reminder notification error:', err);
+          });
         } else {
           // Shifted position
           createNotification(io, {
@@ -120,4 +245,9 @@ module.exports = {
   createNotification,
   handleQueuePositionChanges,
   getCleanTicketNumber,
+  sendBookingNotification,
+  sendCancellationNotification,
+  sendCompletionNotification,
+  sendServingNotification,
+  sendQueueReminderNotification,
 };

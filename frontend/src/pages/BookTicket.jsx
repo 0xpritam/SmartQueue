@@ -9,11 +9,13 @@ import { bookTicket } from '../api/tickets';
 import { getWaitingTickets } from '../api/queues';
 import { recommendDepartment } from '../api/mockData';
 import { register as apiRegister } from '../api/auth';
+import { useNotifications } from '../context/NotificationContext';
 
 const BookTicket = () => {
   const { token, login } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { setToast } = useNotifications() || {};
 
   // API Data State
   const [hospitals, setHospitals] = useState([]);
@@ -176,6 +178,16 @@ const BookTicket = () => {
           departmentName: availableDepartments.find(d => d.id === selectedDepartment)?.name || 'Medical Clinic'
         };
         localStorage.setItem(`smartqueue_meta_${res.ticket.id}`, JSON.stringify(metadata));
+        
+        // Show success toast notification
+        if (setToast) {
+          setToast({
+            id: Date.now(),
+            title: 'Booking Confirmed',
+            message: 'Confirmation email has been sent.',
+            type: 'completed',
+          });
+        }
         
         // Navigate to queue status page using the UUID returned from DB
         navigate(`/queue-status/${res.ticket.id}`);

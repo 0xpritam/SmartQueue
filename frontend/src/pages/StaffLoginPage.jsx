@@ -16,8 +16,6 @@ const StaffLoginPage = () => {
     if (token && currentUser && currentUser.role) {
       if (currentUser.role === 'admin') {
         navigate('/dashboard', { replace: true });
-      } else {
-        navigate('/patient-dashboard', { replace: true });
       }
     }
   }, [token, currentUser, navigate]);
@@ -41,6 +39,41 @@ const StaffLoginPage = () => {
       setLoading(false);
     }
   };
+
+  if (token && currentUser && currentUser.role === 'user') {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans text-slate-100">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          {/* Brand Header */}
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="h-11 w-11 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg border border-blue-500">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            <div>
+              <span className="text-2xl font-black tracking-tight text-white block leading-tight">SmartQueue</span>
+              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Staff Operations</span>
+            </div>
+          </div>
+        </div>
+        <div className="sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
+          <div className="bg-slate-800/80 backdrop-blur-md border border-slate-700/60 rounded-2xl p-8 sm:p-10 shadow-2xl text-center">
+            <h2 className="text-xl font-bold text-white mb-2">Mismatched Session</h2>
+            <p className="text-sm text-slate-400 mb-6">
+              You are currently logged in as a Patient. To access the Hospital Staff Portal, please log out first.
+            </p>
+            <button
+              onClick={() => logout()}
+              className="w-full py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all cursor-pointer"
+            >
+              Log Out & Continue
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans text-slate-100">

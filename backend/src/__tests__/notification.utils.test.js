@@ -1,9 +1,12 @@
-// src/__tests__/notification.utils.test.js
-
 const {
   createNotification,
   handleQueuePositionChanges,
   getCleanTicketNumber,
+  sendBookingNotification,
+  sendCancellationNotification,
+  sendCompletionNotification,
+  sendServingNotification,
+  sendQueueReminderNotification,
 } = require('../utils/notification');
 
 jest.mock('../models', () => {
@@ -16,10 +19,24 @@ jest.mock('../models', () => {
   const mockTicket = {
     findAll: jest.fn(),
   };
-  return { Notification: mockNotification, Ticket: mockTicket };
+  const mockUser = {
+    findByPk: jest.fn(),
+  };
+  const mockDepartment = {
+    findByPk: jest.fn(),
+  };
+  return { Notification: mockNotification, Ticket: mockTicket, User: mockUser, Department: mockDepartment };
 });
 
-const { Notification, Ticket } = require('../models');
+jest.mock('../services/email.service', () => ({
+  sendBookingEmail: jest.fn().mockResolvedValue({}),
+  sendCancellationEmail: jest.fn().mockResolvedValue({}),
+  sendCompletionEmail: jest.fn().mockResolvedValue({}),
+  sendQueueReminderEmail: jest.fn().mockResolvedValue({}),
+}));
+
+const { Notification, Ticket, User, Department } = require('../models');
+const emailService = require('../services/email.service');
 
 describe('Notification Helper Utilities', () => {
   const mockIo = {
@@ -159,6 +176,136 @@ describe('Notification Helper Utilities', () => {
           title: 'Queue Update',
           message: 'Your queue position has changed.',
         })
+      );
+    });
+  });
+
+  describe('Orchestration Layer Functions', () => {
+    it('sendBookingNotification creates in-app notification and sends email', async () => {
+      const fakeTicket = { id: 't1', departmentId: 'd1' };
+      const fakeUser = { id: 'u1', name: 'Bob', email: 'bob@example.com' };
+      const fakeDept = { id: 'd1', name: 'Pediatrics' };
+
+      Notification.create.mockResolvedValue({});
+      Notification.count.mockResolvedValue(0);
+      User.findByPk.mockResolvedValue(fakeUser);
+      Department.findByPk.mockResolvedValue(fakeDept);
+
+      await sendBookingNotification(mockIo, fakeTicket, 'u1');
+
+      expect(Notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'u1',
+          title: 'Ticket Booked',
+        })
+      );
+
+      // wait for microtasks to resolve for async email call
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(emailService.sendBookingEmail).toHaveBeenCalledWith(
+        fakeUser,
+        fakeDept,
+        fakeTicket
+      );
+    });
+
+    it('sendCancellationNotification creates in-app notification and sends email', async () => {
+      const fakeTicket = { id: 't1', userId: 'u1', departmentId: 'd1' };
+      const fakeUser = { id: 'u1', name: 'Bob', email: 'bob@example.com' };
+      const fakeDept = { id: 'd1', name: 'Pediatrics' };
+
+      Notification.create.mockResolvedValue({});
+      Notification.count.mockResolvedValue(0);
+      User.findByPk.mockResolvedValue(fakeUser);
+      Department.findByPk.mockResolvedValue(fakeDept);
+
+      await sendCancellationNotification(mockIo, fakeTicket);
+
+      expect(Notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'u1',
+          title: 'Ticket Cancelled',
+        })
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(emailService.sendCancellationEmail).toHaveBeenCalledWith(
+        fakeUser,
+        fakeDept,
+        fakeTicket
+      );
+    });
+
+    it('sendCompletionNotification creates in-app notification and sends email', async () => {
+      const fakeTicket = { id: 't1', userId: 'u1', departmentId: 'd1' };
+      const fakeUser = { id: 'u1', name: 'Bob', email: 'bob@example.com' };
+      const fakeDept = { id: 'd1', name: 'Pediatrics' };
+
+      Notification.create.mockResolvedValue({});
+      Notification.count.mockResolvedValue(0);
+      User.findByPk.mockResolvedValue(fakeUser);
+      Department.findByPk.mockResolvedValue(fakeDept);
+
+      await sendCompletionNotification(mockIo, fakeTicket);
+
+      expect(Notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'u1',
+          title: 'Visit Completed',
+        })
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(emailService.sendCompletionEmail).toHaveBeenCalledWith(
+        fakeUser,
+        fakeDept,
+        fakeTicket
+      );
+    });
+
+    it('handleQueuePositionChanges triggers queue reminder notification when indexAfter is 3', async () => {
+      const ticketsBefore = [
+        { id: 'tkt-1', userId: 'user-1', status: 'waiting' },
+        { id: 'tkt-2', userId: 'user-2', status: 'waiting' },
+        { id: 'tkt-3', userId: 'user-3', status: 'waiting' },
+        { id: 'tkt-4', userId: 'user-4', status: 'waiting' },
+        { id: 'tkt-5', userId: 'user-5', status: 'waiting' },
+      ];
+
+      // tkt-1 is called/serving, so queue shifts up.
+      // tkt-5 shifts from index 4 to index 3!
+      const ticketsAfter = [
+        { id: 'tkt-2', userId: 'user-2', status: 'waiting' },
+        { id: 'tkt-3', userId: 'user-3', status: 'waiting' },
+        { id: 'tkt-4', userId: 'user-4', status: 'waiting' },
+        { id: 'tkt-5', userId: 'user-5', status: 'waiting' },
+      ];
+
+      Notification.create.mockResolvedValue({});
+      Notification.count.mockResolvedValue(0);
+      User.findByPk.mockResolvedValue({ id: 'user-5', email: 'u5@example.com' });
+      Department.findByPk.mockResolvedValue({ id: 'd1', name: 'Dental' });
+
+      await handleQueuePositionChanges(mockIo, 'dept-1', ticketsBefore, ticketsAfter);
+
+      expect(Notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-5',
+          title: 'Queue Reminder',
+          message: 'Your turn is approaching. Please arrive at the hospital.',
+        })
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(emailService.sendQueueReminderEmail).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.any(Object),
+        expect.any(Object),
+        4
       );
     });
   });
