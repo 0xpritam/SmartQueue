@@ -1,6 +1,6 @@
 // src/utils/notification.js
 
-const { Notification, Ticket } = require('../models');
+const { Notification, Ticket, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 // Helper to format ticket number for notifications
@@ -250,4 +250,72 @@ module.exports = {
   sendCompletionNotification,
   sendServingNotification,
   sendQueueReminderNotification,
+};
+
+const sendRescheduleNotification = async (io, ticket, oldDepartmentId, oldPosition) => {
+  try {
+    const { User, Department } = require('../models');
+
+    const [oldDept, newDept] = await Promise.all([
+      Department.findByPk(oldDepartmentId),
+      Department.findByPk(ticket.departmentId),
+    ]);
+
+    const oldDeptName = oldDept ? oldDept.name : 'Unknown Department';
+    const newDeptName = newDept ? newDept.name : 'Unknown Department';
+    const cleanTicket = getCleanTicketNumber(ticket);
+
+    const message = `Your appointment (${cleanTicket}) has been rescheduled from ${oldDeptName} to ${newDeptName}.`;
+
+    const notification = await createNotification(io, {
+      userId: ticket.userId,
+      ticketId: ticket.id,
+      title: 'Appointment Rescheduled',
+      message,
+      type: 'queue_update',
+    });
+
+    if (io) {
+      if (notification) {
+        io.to(`user:${ticket.userId}`).emit('notification_created', notification);
+      }
+      io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
+    }
+
+    // Trigger async email sending (fire-and-forget)
+    Promise.all([
+      User.findByPk(ticket.userId),
+      Ticket.findAll({
+        where: { departmentId: ticket.departmentId, status: 'waiting' },
+        order: [[sequelize.fn('COALESCE', sequelize.col('rescheduledAt'), sequelize.col('createdAt')), 'ASC']],
+      })
+    ]).then(([user, waitingTickets]) => {
+      if (user) {
+        const newPosition = waitingTickets.findIndex(t => t.id === ticket.id) + 1;
+        const { sendRescheduleEmail } = require('../services/email.service');
+        sendRescheduleEmail(user, oldDeptName, newDeptName, ticket, oldPosition, newPosition).catch((err) => {
+          console.error('[EMAIL ERROR] Failed to send reschedule email:', err);
+        });
+      }
+    }).catch((err) => {
+      console.error('[EMAIL ERROR] Failed to load info for reschedule email:', err);
+    });
+
+    return notification;
+  } catch (error) {
+    console.error('[NOTIFICATION ERROR] Failed to send reschedule notification:', error);
+    return null;
+  }
+};
+
+module.exports = {
+  createNotification,
+  handleQueuePositionChanges,
+  getCleanTicketNumber,
+  sendBookingNotification,
+  sendCancellationNotification,
+  sendCompletionNotification,
+  sendServingNotification,
+  sendQueueReminderNotification,
+  sendRescheduleNotification,
 };

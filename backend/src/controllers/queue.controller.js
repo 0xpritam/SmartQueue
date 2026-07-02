@@ -39,6 +39,13 @@ const getWaitingTickets = async (req, res) => {
       order: [['createdAt', 'ASC']],
     });
 
+    // In-memory sort by effective time (rescheduledAt if present, otherwise createdAt)
+    tickets.sort((a, b) => {
+      const timeA = a.rescheduledAt || a.createdAt;
+      const timeB = b.rescheduledAt || b.createdAt;
+      return new Date(timeA) - new Date(timeB);
+    });
+
     return res.status(200).json({
       success: true,
       tickets,
@@ -74,14 +81,23 @@ const callNextPatient = async (req, res) => {
       order: [['createdAt', 'ASC']],
     });
 
-    ticket.status = 'serving';
-    ticket.calledAt = new Date();
-    await ticket.save();
+    // In-memory sort by effective time
+    ticketsBefore.sort((a, b) => {
+      const timeA = a.rescheduledAt || a.createdAt;
+      const timeB = b.rescheduledAt || b.createdAt;
+      return new Date(timeA) - new Date(timeB);
+    });
+
+    const ticketToServe = ticketsBefore[0];
+
+    ticketToServe.status = 'serving';
+    ticketToServe.calledAt = new Date();
+    await ticketToServe.save();
 
     // Emit socket updates
     const io = req.app?.get?.('io');
     if (io) {
-      io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
+      io.to(`ticket_${ticketToServe.id}`).emit('ticket_updated', ticketToServe);
       io.to(`department_${departmentId}`).emit('queue_updated', { departmentId });
 
       // Trigger socket analytics update
@@ -93,16 +109,21 @@ const callNextPatient = async (req, res) => {
         where: { departmentId, status: 'waiting' },
         order: [['createdAt', 'ASC']],
       }).then((ticketsAfter) => {
+        ticketsAfter.sort((a, b) => {
+          const timeA = a.rescheduledAt || a.createdAt;
+          const timeB = b.rescheduledAt || b.createdAt;
+          return new Date(timeA) - new Date(timeB);
+        });
         handleQueuePositionChanges(io, departmentId, ticketsBefore, ticketsAfter);
       }).catch((err) => console.error('[NOTIFICATION ERROR] Fetching ticketsAfter failed:', err));
 
       // Asynchronously send status change notification to this user
-      sendServingNotification(io, ticket).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
+      sendServingNotification(io, ticketToServe).catch((err) => console.error('[NOTIFICATION ERROR] Status update notification failed:', err));
     }
 
     return res.status(200).json({
       success: true,
-      ticket,
+      ticket: ticketToServe,
     });
   } catch (error) {
     console.error('Call next patient error:', error);

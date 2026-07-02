@@ -49,3 +49,9 @@ export const getAppointmentHistory = async (params = {}) => {
   return res.data;
 };
 
+// Reschedule ticket
+export const rescheduleTicket = async (ticketId, departmentId) => {
+  const res = await api.patch(`/tickets/${ticketId}/reschedule`, { departmentId });
+  return res.data;
+};
+

@@ -176,6 +176,11 @@ const updateTicketStatus = async (req, res) => {
         where: { departmentId: oldDepartmentId, status: 'waiting' },
         order: [['createdAt', 'ASC']],
       });
+      ticketsBefore.sort((a, b) => {
+        const timeA = a.rescheduledAt || a.createdAt;
+        const timeB = b.rescheduledAt || b.createdAt;
+        return new Date(timeA) - new Date(timeB);
+      });
     }
 
     if (status === 'serving') {
@@ -200,6 +205,11 @@ const updateTicketStatus = async (req, res) => {
           where: { departmentId: oldDepartmentId, status: 'waiting' },
           order: [['createdAt', 'ASC']],
         }).then((ticketsAfter) => {
+          ticketsAfter.sort((a, b) => {
+            const timeA = a.rescheduledAt || a.createdAt;
+            const timeB = b.rescheduledAt || b.createdAt;
+            return new Date(timeA) - new Date(timeB);
+          });
           handleQueuePositionChanges(io, oldDepartmentId, ticketsBefore, ticketsAfter);
         }).catch((err) => console.error('[NOTIFICATION ERROR] Fetching ticketsAfter failed:', err));
       }
@@ -363,6 +373,11 @@ const cancelTicket = async (req, res) => {
       where: { departmentId, status: 'waiting' },
       order: [['createdAt', 'ASC']],
     });
+    ticketsBefore.sort((a, b) => {
+      const timeA = a.rescheduledAt || a.createdAt;
+      const timeB = b.rescheduledAt || b.createdAt;
+      return new Date(timeA) - new Date(timeB);
+    });
 
     // 7. Update status to 'cancelled' and save
     ticket.status = 'cancelled';
@@ -372,6 +387,11 @@ const cancelTicket = async (req, res) => {
     const ticketsAfter = await Ticket.findAll({
       where: { departmentId, status: 'waiting' },
       order: [['createdAt', 'ASC']],
+    });
+    ticketsAfter.sort((a, b) => {
+      const timeA = a.rescheduledAt || a.createdAt;
+      const timeB = b.rescheduledAt || b.createdAt;
+      return new Date(timeA) - new Date(timeB);
     });
 
     // 9. Socket.io updates
@@ -453,6 +473,156 @@ const getAppointmentHistory = async (req, res) => {
 };
 
 // ==========================================
+// RESCHEDULE TICKET
+// ==========================================
+const rescheduleTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { departmentId: newDepartmentId } = req.body;
+
+    if (!newDepartmentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Destination departmentId is required',
+      });
+    }
+
+    // 1. Fetch ticket
+    const ticket = await Ticket.findByPk(id);
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ticket not found',
+      });
+    }
+
+    // 2. Validate authorization (only owner can reschedule)
+    if (ticket.userId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized: You can only reschedule your own tickets',
+      });
+    }
+
+    // 3. Validate status (only waiting tickets can be rescheduled)
+    if (ticket.status !== 'waiting') {
+      return res.status(400).json({
+        success: false,
+        message: `Only tickets with status 'waiting' can be rescheduled. Current status is '${ticket.status}'.`,
+      });
+    }
+
+    // 4. Validate destination department exists
+    const newDept = await Department.findByPk(newDepartmentId);
+    if (!newDept) {
+      return res.status(404).json({
+        success: false,
+        message: 'Destination department does not exist',
+      });
+    }
+
+    // 5. Reject if destination department is the same as the current department
+    const oldDepartmentId = ticket.departmentId;
+    if (oldDepartmentId === newDepartmentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Destination department cannot be the same as the current department',
+      });
+    }
+
+    // 6. Fetch waiting tickets before reschedule in both departments
+    const [oldTicketsBefore, newTicketsBefore] = await Promise.all([
+      Ticket.findAll({
+        where: { departmentId: oldDepartmentId, status: 'waiting' },
+        order: [['createdAt', 'ASC']],
+      }),
+      Ticket.findAll({
+        where: { departmentId: newDepartmentId, status: 'waiting' },
+        order: [['createdAt', 'ASC']],
+      })
+    ]);
+
+    oldTicketsBefore.sort((a, b) => {
+      const timeA = a.rescheduledAt || a.createdAt;
+      const timeB = b.rescheduledAt || b.createdAt;
+      return new Date(timeA) - new Date(timeB);
+    });
+    newTicketsBefore.sort((a, b) => {
+      const timeA = a.rescheduledAt || a.createdAt;
+      const timeB = b.rescheduledAt || b.createdAt;
+      return new Date(timeA) - new Date(timeB);
+    });
+
+    const oldQueuePosition = oldTicketsBefore.findIndex(t => t.id === ticket.id) + 1;
+
+    // 7. Update ticket
+    ticket.departmentId = newDepartmentId;
+    ticket.rescheduledAt = new Date();
+    await ticket.save();
+
+    // 8. Fetch waiting tickets after reschedule in both departments
+    const [oldTicketsAfter, newTicketsAfter] = await Promise.all([
+      Ticket.findAll({
+        where: { departmentId: oldDepartmentId, status: 'waiting' },
+        order: [['createdAt', 'ASC']],
+      }),
+      Ticket.findAll({
+        where: { departmentId: newDepartmentId, status: 'waiting' },
+        order: [['createdAt', 'ASC']],
+      })
+    ]);
+
+    oldTicketsAfter.sort((a, b) => {
+      const timeA = a.rescheduledAt || a.createdAt;
+      const timeB = b.rescheduledAt || b.createdAt;
+      return new Date(timeA) - new Date(timeB);
+    });
+    newTicketsAfter.sort((a, b) => {
+      const timeA = a.rescheduledAt || a.createdAt;
+      const timeB = b.rescheduledAt || b.createdAt;
+      return new Date(timeA) - new Date(timeB);
+    });
+
+    const newQueuePosition = newTicketsAfter.findIndex(t => t.id === ticket.id) + 1;
+
+    // 9. Socket emissions
+    const io = req.app?.get?.('io');
+    if (io) {
+      io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
+      io.to(`department_${oldDepartmentId}`).emit('queue_updated', { departmentId: oldDepartmentId });
+      io.to(`department_${newDepartmentId}`).emit('queue_updated', { departmentId: newDepartmentId });
+
+      // Trigger analytics update
+      const { emitAnalyticsUpdate } = require('./analytics.controller');
+      emitAnalyticsUpdate(io);
+
+      // Handle queue shifts in both departments
+      handleQueuePositionChanges(io, oldDepartmentId, oldTicketsBefore, oldTicketsAfter);
+      handleQueuePositionChanges(io, newDepartmentId, newTicketsBefore, newTicketsAfter);
+
+      // Trigger reschedule notification
+      const { sendRescheduleNotification } = require('../utils/notification');
+      sendRescheduleNotification(io, ticket, oldDepartmentId, oldQueuePosition).catch((err) => {
+        console.error('[NOTIFICATION ERROR] Failed to send reschedule notification:', err);
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Ticket rescheduled successfully',
+      ticket,
+    });
+
+  } catch (error) {
+    console.error('Reschedule ticket error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+};
+
+// ==========================================
 // EXPORTS
 // ==========================================
 module.exports = {
@@ -464,5 +634,6 @@ module.exports = {
   getTicketQR,
   cancelTicket,
   getAppointmentHistory,
+  rescheduleTicket,
 };
 

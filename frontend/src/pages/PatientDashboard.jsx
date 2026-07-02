@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PatientNavbar from '../components/PatientNavbar';
 import PatientFooter from '../components/PatientFooter';
 import { useAuth } from '../context/AuthContext';
-import { getMyTickets, getTicketQRCode, cancelTicket, getAppointmentHistory } from '../api/tickets';
+import { getMyTickets, getTicketQRCode, cancelTicket, getAppointmentHistory, rescheduleTicket } from '../api/tickets';
 import { getWaitingTickets } from '../api/queues';
 import { getDepartments } from '../api/departments';
 import { useSocket } from '../context/SocketContext';
@@ -41,6 +41,12 @@ const PatientDashboard = () => {
   // Cancellation State
   const [ticketToCancel, setTicketToCancel] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
+
+  // Rescheduling State
+  const [ticketToReschedule, setTicketToReschedule] = useState(null);
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  const [rescheduleError, setRescheduleError] = useState(null);
 
   const [profileForm, setProfileForm] = useState({
     name: currentUser?.name || '',
@@ -259,6 +265,41 @@ const PatientDashboard = () => {
       setTimeout(() => setToast(null), 4000);
     } finally {
       setCancelLoading(false);
+    }
+  };
+
+  const handleOpenRescheduleModal = (ticket) => {
+    setTicketToReschedule(ticket);
+    setSelectedDepartment(ticket.departmentId);
+    setRescheduleError(null);
+  };
+
+  const handleRescheduleSubmit = async (e) => {
+    e.preventDefault();
+    if (!ticketToReschedule) return;
+    if (ticketToReschedule.departmentId === selectedDepartment) {
+      setRescheduleError('Destination department cannot be the same as the current department');
+      return;
+    }
+    setRescheduleLoading(true);
+    setRescheduleError(null);
+    try {
+      const res = await rescheduleTicket(ticketToReschedule.id, selectedDepartment);
+      if (res && res.success) {
+        setTicketToReschedule(null);
+        setToast({ message: 'Appointment rescheduled successfully.', type: 'success' });
+        setTimeout(() => setToast(null), 4000);
+        // Refresh dashboard data
+        await fetchPatientData(true);
+      } else {
+        setRescheduleError(res.message || 'Failed to reschedule appointment.');
+      }
+    } catch (err) {
+      console.error('Reschedule ticket submit error:', err);
+      const errMsg = err.response?.data?.message || 'An error occurred during rescheduling.';
+      setRescheduleError(errMsg);
+    } finally {
+      setRescheduleLoading(false);
     }
   };
 
@@ -584,16 +625,28 @@ const PatientDashboard = () => {
                               <span>QR Code</span>
                             </button>
                             {t.status === 'waiting' && (
-                              <button
-                                onClick={() => setTicketToCancel(t)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors font-bold text-xs cursor-pointer shrink-0"
-                                title="Cancel Ticket"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                                <span>Cancel</span>
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => setTicketToCancel(t)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors font-bold text-xs cursor-pointer shrink-0"
+                                  title="Cancel Ticket"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                  <span>Cancel</span>
+                                </button>
+                                <button
+                                  onClick={() => handleOpenRescheduleModal(t)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors font-bold text-xs cursor-pointer shrink-0"
+                                  title="Reschedule Ticket"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span>Reschedule</span>
+                                </button>
+                              </>
                             )}
                             <button
                               onClick={() => navigate(`/queue-status/${t.id}`)}
@@ -1085,6 +1138,104 @@ const PatientDashboard = () => {
                     'Cancel Booking'
                   )}
                 </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Reschedule Ticket Confirmation Modal */}
+      <AnimatePresence>
+        {ticketToReschedule && (
+          <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 animate-fadeIn">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                if (!rescheduleLoading) setTicketToReschedule(null);
+              }}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 overflow-hidden z-10 space-y-4"
+            >
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                <h3 className="text-base font-bold text-slate-900">Reschedule Appointment</h3>
+                <button
+                  type="button"
+                  onClick={() => setTicketToReschedule(null)}
+                  className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                  disabled={rescheduleLoading}
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {rescheduleError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex gap-2 text-xs text-red-700 font-semibold leading-normal animate-fadeIn">
+                  <svg className="h-5 w-5 text-red-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>{rescheduleError}</div>
+                </div>
+              )}
+
+              <form onSubmit={handleRescheduleSubmit} className="space-y-4">
+                <div>
+                  <label htmlFor="rescheduleDepartment" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    Select New Department
+                  </label>
+                  <select
+                    id="rescheduleDepartment"
+                    value={selectedDepartment}
+                    onChange={(e) => setSelectedDepartment(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
+                    required
+                  >
+                    {departments.map((dept) => (
+                      <option key={dept.id} value={dept.id} disabled={dept.id === ticketToReschedule.departmentId}>
+                        {dept.name} {dept.id === ticketToReschedule.departmentId ? '(Current)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setTicketToReschedule(null)}
+                    className="btn-secondary flex-1 py-2 text-xs font-bold cursor-pointer"
+                    disabled={rescheduleLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-2 text-xs font-bold gap-1.5 cursor-pointer flex items-center justify-center rounded-md border border-transparent bg-teal-600 text-white hover:bg-teal-700 transition-all shadow-sm active:translate-y-px disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={rescheduleLoading}
+                  >
+                    {rescheduleLoading ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Rescheduling...
+                      </>
+                    ) : (
+                      'Confirm'
+                    )}
+                  </button>
+                </div>
               </form>
             </motion.div>
           </div>

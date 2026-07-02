@@ -9,7 +9,8 @@ const {
   updateTicketStatus,
   getTicketQR,
   cancelTicket,
-  getAppointmentHistory
+  getAppointmentHistory,
+  rescheduleTicket
 } = require('../controllers/ticket.controller');
 
 
@@ -38,6 +39,9 @@ router.patch('/:id/status', authenticate, updateTicketStatus);
 
 // PATCH /api/tickets/:id/cancel - Cancel ticket (authenticated)
 router.patch('/:id/cancel', authenticate, cancelTicket);
+
+// PATCH /api/tickets/:id/reschedule - Reschedule ticket (authenticated)
+router.patch('/:id/reschedule', authenticate, rescheduleTicket);
 
 module.exports = router;
 

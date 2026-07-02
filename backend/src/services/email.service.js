@@ -8,6 +8,7 @@ const bookingTemplate = require('../templates/booking.template');
 const cancellationTemplate = require('../templates/cancellation.template');
 const completionTemplate = require('../templates/completion.template');
 const queueReminderTemplate = require('../templates/queueReminder.template');
+const rescheduleTemplate = require('../templates/reschedule.template');
 
 const getTransporter = () => {
   return nodemailer.createTransport({
@@ -157,9 +158,35 @@ const sendQueueReminderEmail = async (user, department, ticket, currentPosition)
   await sendEmail(user.email, `SmartQueue Alert: Your Turn is Approaching`, html);
 };
 
+const sendRescheduleEmail = async (user, oldDepartment, newDepartment, ticket, oldPosition, newPosition) => {
+  const patientName = user.name || 'Valued Patient';
+  const cleanTicket = getCleanTicketNumber(ticket);
+
+  const rescheduledTime = new Date(ticket.updatedAt).toLocaleString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+  });
+
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const queueLink = `${frontendUrl}/queue-status/${ticket.id}`;
+
+  const html = rescheduleTemplate({
+    patientName,
+    ticketNumber: cleanTicket,
+    oldDepartment,
+    newDepartment,
+    oldQueuePosition: oldPosition,
+    newQueuePosition: newPosition,
+    rescheduledTime,
+    queueLink,
+  });
+
+  await sendEmail(user.email, `SmartQueue Appointment Rescheduled: ${cleanTicket}`, html);
+};
+
 module.exports = {
   sendBookingEmail,
   sendCancellationEmail,
   sendCompletionEmail,
   sendQueueReminderEmail,
+  sendRescheduleEmail,
 };
