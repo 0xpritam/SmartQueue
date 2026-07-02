@@ -69,26 +69,7 @@ module.exports = ({
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    .detail-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 10px;
-      border-bottom: 1px dashed #fde2e2;
-      padding-bottom: 8px;
-    }
-    .detail-row:last-child {
-      margin-bottom: 0;
-      border-bottom: none;
-      padding-bottom: 0;
-    }
-    .detail-label {
-      font-weight: 600;
-      color: #7f1d1d;
-    }
-    .detail-value {
-      color: #1f2937;
-      text-align: right;
-    }
+   
     .footer {
       background-color: #f9fafb;
       padding: 20px;
@@ -112,21 +93,43 @@ module.exports = ({
         <div class="greeting">Hello ${patientName},</div>
         <p>This email confirms that your SmartQueue appointment has been cancelled.</p>
         
-        <div class="card">
-          <div class="card-title">Cancellation Summary</div>
-          <div class="detail-row">
-            <div class="detail-label">Department</div>
-            <div class="detail-value">${departmentName}</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Ticket Number</div>
-            <div class="detail-value" style="font-family: monospace;">${ticketNumber}</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Cancellation Time</div>
-            <div class="detail-value">${cancellationTime}</div>
-          </div>
-        </div>
+       <div class="card">
+  <div class="card-title">Cancellation Summary</div>
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+
+    <tr>
+      <td style="padding:10px 0;font-weight:600;color:#7f1d1d;border-bottom:1px dashed #fde2e2;">
+        Department:
+      </td>
+
+      <td style="padding:10px 0;text-align:right;border-bottom:1px dashed #fde2e2;">
+        ${departmentName}
+      </td>
+    </tr>
+
+    <tr>
+      <td style="padding:10px 0;font-weight:600;color:#7f1d1d;border-bottom:1px dashed #fde2e2;">
+        Ticket Number:
+      </td>
+
+      <td style="padding:10px 0;text-align:right;font-family:monospace;font-weight:bold;color:#dc2626;border-bottom:1px dashed #fde2e2;">
+        ${ticketNumber}
+      </td>
+    </tr>
+
+    <tr>
+      <td style="padding:10px 0;font-weight:600;color:#7f1d1d;">
+        Cancellation Time:
+      </td>
+
+      <td style="padding:10px 0;text-align:right;">
+        ${cancellationTime}
+      </td>
+    </tr>
+
+  </table>
+</div>
         
         <p>If you did not request this cancellation or would like to book a new appointment, please visit the SmartQueue portal.</p>
       </div>

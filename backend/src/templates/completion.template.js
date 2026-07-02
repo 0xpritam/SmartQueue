@@ -79,26 +79,7 @@ module.exports = ({
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    .detail-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 10px;
-      border-bottom: 1px dashed #bbf7d0;
-      padding-bottom: 8px;
-    }
-    .detail-row:last-child {
-      margin-bottom: 0;
-      border-bottom: none;
-      padding-bottom: 0;
-    }
-    .detail-label {
-      font-weight: 600;
-      color: #14532d;
-    }
-    .detail-value {
-      color: #1f2937;
-      text-align: right;
-    }
+   
     .heart-icon {
       font-size: 48px;
       color: #0f766e;
@@ -129,17 +110,33 @@ module.exports = ({
         <div class="message">${appreciationMessage}</div>
         
         <div class="card">
-          <div class="card-title">Visit Details</div>
-          <div class="detail-row">
-            <div class="detail-label">Department</div>
-            <div class="detail-value">${departmentName}</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Completion Time</div>
-            <div class="detail-value">${visitTime}</div>
-          </div>
-        </div>
-      </div>
+  <div class="card-title">Visit Details</div>
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+
+    <tr>
+      <td style="padding:10px 0;font-weight:600;color:#14532d;border-bottom:1px dashed #bbf7d0;">
+        Department:
+      </td>
+
+      <td style="padding:10px 0;text-align:right;border-bottom:1px dashed #bbf7d0;">
+        ${departmentName}
+      </td>
+    </tr>
+
+    <tr>
+      <td style="padding:10px 0;font-weight:600;color:#14532d;">
+        Completion Time:
+      </td>
+
+      <td style="padding:10px 0;text-align:right;">
+        ${visitTime}
+      </td>
+    </tr>
+
+  </table>
+</div>
+ </div>
       <div class="footer">
         <p>This is an automated SmartQueue notification.</p>
         <p>&copy; ${new Date().getFullYear()} SmartQueue. All rights reserved.</p>

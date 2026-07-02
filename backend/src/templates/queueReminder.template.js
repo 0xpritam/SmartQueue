@@ -80,29 +80,10 @@ module.exports = ({
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    .detail-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 10px;
-      border-bottom: 1px dashed #e2e8f0;
-      padding-bottom: 8px;
-    }
-    .detail-row:last-child {
-      margin-bottom: 0;
-      border-bottom: none;
-      padding-bottom: 0;
-    }
-    .detail-label {
-      font-weight: 600;
-      color: #4b5563;
-    }
-    .detail-value {
-      color: #1f2937;
-      text-align: right;
-    }
+    
     .button-container {
       text-align: center;
-      margin-top: 25px;
+      margin-top: 30px;
       margin-bottom: 10px;
     }
     .btn {
@@ -141,29 +122,67 @@ module.exports = ({
           Your turn is approaching. Please arrive at the hospital.
         </div>
         
-        <div class="card">
-          <div class="card-title">Queue Status Summary</div>
-          <div class="detail-row">
-            <div class="detail-label">Department</div>
-            <div class="detail-value">${departmentName}</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Queue Number (Your Position)</div>
-            <div class="detail-value" style="font-weight: 700; color: #0284c7;">#${queueNumber}</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Patients Remaining Ahead</div>
-            <div class="detail-value" style="font-weight: 700;">${currentPosition - 1}</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Estimated Waiting Time</div>
-            <div class="detail-value" style="font-weight: 700; color: #0284c7;">${estimatedWaitTime}</div>
-          </div>
-        </div>
+       <div class="card">
+  <div class="card-title">Queue Status Summary</div>
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+
+    <tr>
+      <td style="padding:10px 0;font-weight:600;color:#4b5563;border-bottom:1px dashed #e2e8f0;">
+        Department:
+      </td>
+
+      <td style="padding:10px 0;text-align:right;border-bottom:1px dashed #e2e8f0;">
+        ${departmentName}
+      </td>
+    </tr>
+
+    <tr>
+      <td style="padding:10px 0;font-weight:600;color:#4b5563;border-bottom:1px dashed #e2e8f0;">
+        Queue Number:
+      </td>
+
+      <td style="padding:10px 0;text-align:right;font-weight:700;color:#0284c7;border-bottom:1px dashed #e2e8f0;">
+        #${queueNumber}
+      </td>
+    </tr>
+
+    <tr>
+      <td style="padding:10px 0;font-weight:600;color:#4b5563;border-bottom:1px dashed #e2e8f0;">
+        Patients Remaining:
+      </td>
+
+      <td style="padding:10px 0;text-align:right;font-weight:700;border-bottom:1px dashed #e2e8f0;">
+        ${currentPosition - 1}
+      </td>
+    </tr>
+
+    <tr>
+      <td style="padding:10px 0;font-weight:600;color:#4b5563;">
+        Estimated Wait:
+      </td>
+
+      <td style="padding:10px 0;text-align:right;font-weight:700;color:#0284c7;">
+        ${estimatedWaitTime}
+      </td>
+    </tr>
+
+  </table>
+</div>
         
-        <div class="button-container">
-          <a href="${queueLink}" class="btn" target="_blank">Track Queue Live Status</a>
-        </div>
+       <div class="button-container">
+  <a href="${queueLink}" class="btn" target="_blank">
+    Track Queue Live Status
+  </a>
+
+  <p style="margin-top:20px;font-size:13px;color:#6b7280;">
+    If the button doesn't work, copy and paste this link into your browser:
+  </p>
+
+  <p style="font-size:12px;word-break:break-all;color:#0284c7;">
+    ${queueLink}
+  </p>
+</div>
       </div>
       <div class="footer">
         <p>This is an automated SmartQueue notification.</p>
