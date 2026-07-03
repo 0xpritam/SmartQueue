@@ -314,6 +314,74 @@ const AnalyticsPage = () => {
                 <div className="text-[9px] text-purple-200/90 font-bold mt-5 tracking-wide">Average wait in queue today</div>
               </div>
 
+              {/* Average Consultation Time */}
+              <div className="bg-gradient-to-br from-teal-500 to-cyan-600 text-white rounded-xl p-5 shadow-md border border-teal-500/20 relative overflow-hidden transition-all hover:scale-[1.02] duration-200">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-teal-100 uppercase tracking-wider block">Avg Consult Time</span>
+                    <span className="text-2xl font-black block leading-none">
+                      {data.avgConsultationTime || 0} <span className="text-xs font-semibold">mins</span>
+                    </span>
+                  </div>
+                  <div className="p-2 bg-white/10 rounded-lg text-white shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="text-[9px] text-teal-200/90 font-bold mt-5 tracking-wide">Treatment duration historically</div>
+              </div>
+
+              {/* Fastest Department */}
+              <div className="bg-gradient-to-br from-amber-600 to-yellow-500 text-white rounded-xl p-5 shadow-md border border-amber-500/20 relative overflow-hidden transition-all hover:scale-[1.02] duration-200">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1 truncate max-w-full">
+                    <span className="text-[10px] font-bold text-amber-100 uppercase tracking-wider block">Fastest Dept</span>
+                    <span className="text-sm font-black block leading-snug truncate">{data.fastestDepartment || 'N/A'}</span>
+                  </div>
+                  <div className="p-2 bg-white/10 rounded-lg text-white shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="text-[9px] text-amber-200/90 font-bold mt-5 tracking-wide">Lowest average consultation duration</div>
+              </div>
+
+              {/* Slowest Department */}
+              <div className="bg-gradient-to-br from-rose-600 to-orange-500 text-white rounded-xl p-5 shadow-md border border-rose-500/20 relative overflow-hidden transition-all hover:scale-[1.02] duration-200">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1 truncate max-w-full">
+                    <span className="text-[10px] font-bold text-rose-100 uppercase tracking-wider block">Slowest Dept</span>
+                    <span className="text-sm font-black block leading-snug truncate">{data.slowestDepartment || 'N/A'}</span>
+                  </div>
+                  <div className="p-2 bg-white/10 rounded-lg text-white shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="text-[9px] text-rose-200/90 font-bold mt-5 tracking-wide">Highest average consultation duration</div>
+              </div>
+
+              {/* Average Daily Waiting Time */}
+              <div className="bg-gradient-to-br from-fuchsia-600 to-pink-700 text-white rounded-xl p-5 shadow-md border border-fuchsia-500/20 relative overflow-hidden transition-all hover:scale-[1.02] duration-200">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-fuchsia-100 uppercase tracking-wider block">Avg Daily Wait</span>
+                    <span className="text-2xl font-black block leading-none">
+                      {data.avgDailyWaitTime || 0} <span className="text-xs font-semibold">mins</span>
+                    </span>
+                  </div>
+                  <div className="p-2 bg-white/10 rounded-lg text-white shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="text-[9px] text-fuchsia-200/90 font-bold mt-5 tracking-wide">All-time average daily waiting duration</div>
+              </div>
+
             </div>
 
             {/* Department Summary Table */}

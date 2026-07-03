@@ -32,6 +32,7 @@ function mockReqRes(user = { id: 'staff-1' }, params = {}, query = {}) {
 describe('Analytics Controller', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    Department.findAll.mockResolvedValue([]);
   });
 
   describe('Authorization', () => {

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PatientNavbar from '../components/PatientNavbar';
 import PatientFooter from '../components/PatientFooter';
 import { useAuth } from '../context/AuthContext';
-import { getMyTickets, getTicketQRCode, cancelTicket, getAppointmentHistory, rescheduleTicket } from '../api/tickets';
+import { getMyTickets, getTicketQRCode, cancelTicket, getAppointmentHistory, rescheduleTicket, getPrediction } from '../api/tickets';
 import { getWaitingTickets } from '../api/queues';
 import { getDepartments } from '../api/departments';
 import { useSocket } from '../context/SocketContext';
@@ -18,6 +18,7 @@ const PatientDashboard = () => {
   const [tickets, setTickets] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [deptQueues, setDeptQueues] = useState({}); // deptId -> waitingList
+  const [predictions, setPredictions] = useState({});
 
   // Appointment History State
   const [historyTickets, setHistoryTickets] = useState([]);
@@ -107,6 +108,22 @@ const PatientDashboard = () => {
         }
       }
       setDeptQueues(queuesData);
+
+      // Fetch predictions for all active tickets (waiting & serving)
+      const activeTickets = userTickets.filter(t => t.status === 'waiting' || t.status === 'serving');
+      const predictionsData = {};
+      for (const t of activeTickets) {
+        try {
+          const predRes = await getPrediction(t.id);
+          if (predRes && predRes.success) {
+            predictionsData[t.id] = predRes;
+          }
+        } catch (predErr) {
+          console.error(`Failed to fetch prediction for ticket ${t.id}`, predErr);
+        }
+      }
+      setPredictions(predictionsData);
+
       setError(null);
     } catch (err) {
       console.error('Failed to fetch patient dashboard data:', err);
@@ -160,10 +177,12 @@ const PatientDashboard = () => {
 
     socket.on('ticket_updated', handleUpdate);
     socket.on('queue_updated', handleUpdate);
+    socket.on('prediction_updated', handleUpdate);
 
     return () => {
       socket.off('ticket_updated', handleUpdate);
       socket.off('queue_updated', handleUpdate);
+      socket.off('prediction_updated', handleUpdate);
     };
   }, [socket, tickets]);
 
@@ -600,8 +619,8 @@ const PatientDashboard = () => {
                           </span>
                         </div>
 
-                        {/* Pacing Info */}
-                        <div className="flex gap-4 sm:gap-6 border-t sm:border-t-0 sm:border-l border-slate-100 pt-3 sm:pt-0 sm:pl-6 text-center shrink-0 w-full sm:w-auto justify-around sm:justify-start">
+                        {/* Prediction pacing indicators */}
+                        <div className="flex gap-4 sm:gap-6 border-t sm:border-t-0 sm:border-l border-slate-100 pt-3 sm:pt-0 sm:pl-6 text-center flex-1 w-full sm:w-auto justify-around sm:justify-start flex-wrap">
                           <div className="space-y-0.5">
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Position</span>
                             <span className="text-xs font-extrabold text-slate-900 block">{positionLabel}</span>
@@ -609,10 +628,36 @@ const PatientDashboard = () => {
                           <div className="space-y-0.5">
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Est. Wait</span>
                             <span className="text-xs font-extrabold text-slate-900 block">
-                              {t.status === 'serving' ? '0 mins' : `${estWaitVal} mins`}
+                              {predictions[t.id] ? `${predictions[t.id].estimatedWaitMinutes} mins` : '—'}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 pt-1.5 sm:pt-0 flex-wrap">
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Ahead</span>
+                            <span className="text-xs font-extrabold text-slate-900 block">
+                              {predictions[t.id] ? predictions[t.id].patientsAhead : '—'}
+                            </span>
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Confidence</span>
+                            <span className={`text-[10px] font-bold block ${
+                              predictions[t.id]?.confidence === 'High' ? 'text-emerald-600' :
+                              predictions[t.id]?.confidence === 'Medium' ? 'text-blue-600' :
+                              'text-slate-400'
+                            }`}>
+                              {predictions[t.id] ? predictions[t.id].confidence : '—'}
+                            </span>
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Est. Start</span>
+                            <span className="text-xs font-extrabold text-slate-900 block">
+                              {predictions[t.id]
+                                ? predictions[t.id].estimatedWaitMinutes > 0
+                                  ? new Date(Date.now() + predictions[t.id].estimatedWaitMinutes * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                  : 'Immediate'
+                                : '—'}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 pt-1.5 sm:pt-0 w-full">
                             <button
                               onClick={() => handleOpenQRModal(t)}
                               className="btn-secondary py-1.5 px-3 text-xs font-bold cursor-pointer shrink-0 flex items-center gap-1.5"
@@ -1012,9 +1057,38 @@ const PatientDashboard = () => {
                       <span className="text-slate-400 font-bold uppercase">Division</span>
                       <span className="text-slate-800 font-bold">{getTicketMetadata(selectedTicketForQR.id).departmentName}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400 font-bold uppercase">Status</span>
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wide">Pacing Status</span>
                       <span className="font-bold capitalize text-blue-600">{selectedTicketForQR.status}</span>
+                    </div>
+
+                    {predictions[selectedTicketForQR.id] && (
+                      <div className="grid grid-cols-2 gap-2 text-left bg-slate-50 p-2.5 rounded-xl border border-slate-100 mt-2 text-xs">
+                        <div>
+                          <span className="text-[9px] text-slate-400 font-bold block uppercase">Est. Wait Time</span>
+                          <span className="font-bold text-slate-800">{predictions[selectedTicketForQR.id].estimatedWaitMinutes} mins</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] text-slate-400 font-bold block uppercase">Patients Ahead</span>
+                          <span className="font-bold text-slate-800">{predictions[selectedTicketForQR.id].patientsAhead}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] text-slate-400 font-bold block uppercase">Confidence</span>
+                          <span className="font-bold text-slate-800">{predictions[selectedTicketForQR.id].confidence}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] text-slate-400 font-bold block uppercase">Est. Start Time</span>
+                          <span className="font-bold text-slate-800">
+                            {predictions[selectedTicketForQR.id].estimatedWaitMinutes > 0
+                              ? new Date(Date.now() + predictions[selectedTicketForQR.id].estimatedWaitMinutes * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : 'Immediate'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wide">Check-in Time</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400 font-bold uppercase">Created At</span>

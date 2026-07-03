@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PatientNavbar from '../components/PatientNavbar';
 import PatientFooter from '../components/PatientFooter';
 import { useAuth } from '../context/AuthContext';
-import { getTicket, getTicketQRCode } from '../api/tickets';
+import { getTicket, getTicketQRCode, getPrediction } from '../api/tickets';
 import { useSocket } from '../context/SocketContext';
 import { 
   getCurrentServing, 
@@ -20,6 +20,7 @@ const QueueStatus = () => {
   const [ticket, setTicket] = useState(null);
   const [servingTicket, setServingTicket] = useState(null);
   const [waitingTickets, setWaitingTickets] = useState([]);
+  const [prediction, setPrediction] = useState(null);
   
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -107,6 +108,16 @@ const QueueStatus = () => {
         if (waitingRes && waitingRes.success) {
           setWaitingTickets(waitingRes.tickets || []);
         }
+
+        // 4. Fetch prediction details
+        try {
+          const predRes = await getPrediction(t.id);
+          if (predRes && predRes.success) {
+            setPrediction(predRes);
+          }
+        } catch (predErr) {
+          console.error('Failed to load queue prediction:', predErr);
+        }
       } else {
         setNotFound(true);
       }
@@ -161,12 +172,19 @@ const QueueStatus = () => {
       }
     };
 
+    const handlePredictionUpdated = () => {
+      console.log('[SOCKET] Received prediction update');
+      fetchQueueData(true);
+    };
+
     socket.on('ticket_updated', handleTicketUpdated);
     socket.on('queue_updated', handleQueueUpdated);
+    socket.on('prediction_updated', handlePredictionUpdated);
 
     return () => {
       socket.off('ticket_updated', handleTicketUpdated);
       socket.off('queue_updated', handleQueueUpdated);
+      socket.off('prediction_updated', handlePredictionUpdated);
     };
   }, [socket, ticketId, ticket?.departmentId]);
 
@@ -291,7 +309,8 @@ const QueueStatus = () => {
   ];
 
   const { position, peopleAhead } = calculateQueuePosition();
-  const estWaitTime = ticket?.status === 'waiting' ? peopleAhead * 8 : 0;
+  const estWaitTime = prediction ? prediction.estimatedWaitMinutes : (ticket?.status === 'waiting' ? peopleAhead * 8 : 0);
+  const predictionConfidence = prediction ? prediction.confidence : 'Low';
 
   // Visual status configurations
   const getStatusConfig = () => {
@@ -481,37 +500,61 @@ const QueueStatus = () => {
                 </div>
 
                 {/* Queue Stats Grid */}
-                <div className="grid grid-cols-3 gap-2 text-center pt-2">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center pt-2">
                   
                   {/* Current Serving */}
                   <div className="space-y-1">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Serving Now</span>
-                    <span className="text-sm font-extrabold text-slate-900 block truncate">
+                    <span className="text-xs font-extrabold text-slate-900 block truncate">
                       {ticket.status === 'completed' ? '—' : (servingTicket ? `TKT-${servingTicket.ticketNumber.split('-')[2].substring(0,6)}` : 'None')}
                     </span>
                   </div>
 
                   {/* Position */}
                   <div className="space-y-1 border-x border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Your Position</span>
-                    <span className="text-sm font-extrabold text-slate-900 block">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Position</span>
+                    <span className="text-xs font-extrabold text-slate-900 block">
                       {ticket.status === 'completed' ? (
-                        <span className="text-emerald-600">Checked In</span>
+                        <span className="text-emerald-600 font-bold">Done</span>
                       ) : ticket.status === 'serving' ? (
                         <span className="text-teal-600 animate-pulse font-bold">Your Turn</span>
                       ) : position === 1 ? (
                         'Next'
                       ) : (
-                        `${position} ahead`
+                        `${position}`
                       )}
                     </span>
                   </div>
 
                   {/* Estimated Wait */}
-                  <div className="space-y-1">
+                  <div className="space-y-1 sm:border-r sm:border-slate-100">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Est. Wait</span>
-                    <span className="text-sm font-extrabold text-slate-900 block">
+                    <span className="text-xs font-extrabold text-slate-900 block">
                       {ticket.status === 'completed' || ticket.status === 'serving' ? '0 mins' : `${estWaitTime} mins`}
+                    </span>
+                  </div>
+
+                  {/* Prediction Confidence */}
+                  <div className="space-y-1 border-x sm:border-x-0 sm:border-r sm:border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Confidence</span>
+                    <span className={`text-[10px] font-bold block ${
+                      predictionConfidence === 'High' ? 'text-emerald-600' :
+                      predictionConfidence === 'Medium' ? 'text-blue-600' :
+                      'text-slate-400'
+                    }`}>
+                      {ticket.status === 'completed' || ticket.status === 'serving' ? '—' : predictionConfidence}
+                    </span>
+                  </div>
+
+                  {/* Est. Start Time */}
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Est. Start</span>
+                    <span className="text-xs font-extrabold text-slate-900 block">
+                      {ticket.status === 'completed' || ticket.status === 'serving'
+                        ? '—'
+                        : (prediction && prediction.estimatedWaitMinutes > 0
+                          ? new Date(Date.now() + prediction.estimatedWaitMinutes * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : 'Immediate')}
                     </span>
                   </div>
 
@@ -811,6 +854,32 @@ const QueueStatus = () => {
                       <span className="text-slate-400 font-bold uppercase">Status</span>
                       <span className="font-bold capitalize text-blue-600">{ticket.status}</span>
                     </div>
+
+                    {prediction && (
+                      <div className="grid grid-cols-2 gap-2 text-left bg-white p-2 rounded border border-slate-100 mt-2 text-[10px]">
+                        <div>
+                          <span className="text-[8px] text-slate-400 font-bold block uppercase">Est. Wait Time</span>
+                          <span className="font-bold text-slate-800">{prediction.estimatedWaitMinutes} mins</span>
+                        </div>
+                        <div>
+                          <span className="text-[8px] text-slate-400 font-bold block uppercase">Patients Ahead</span>
+                          <span className="font-bold text-slate-800">{prediction.patientsAhead}</span>
+                        </div>
+                        <div>
+                          <span className="text-[8px] text-slate-400 font-bold block uppercase">Confidence</span>
+                          <span className="font-bold text-slate-800">{prediction.confidence}</span>
+                        </div>
+                        <div>
+                          <span className="text-[8px] text-slate-400 font-bold block uppercase">Est. Start Time</span>
+                          <span className="font-bold text-slate-800">
+                            {prediction.estimatedWaitMinutes > 0
+                              ? new Date(Date.now() + prediction.estimatedWaitMinutes * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : 'Immediate'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex justify-between">
                       <span className="text-slate-400 font-bold uppercase">Created At</span>
                       <span className="text-slate-500">

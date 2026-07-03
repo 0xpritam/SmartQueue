@@ -206,6 +206,8 @@ const updateTicketStatus = async (req, res) => {
     if (io) {
       io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
       io.to(`department_${ticket.departmentId}`).emit('queue_updated', { departmentId: ticket.departmentId });
+      io.to(`department_${ticket.departmentId}`).emit('prediction_updated', { departmentId: ticket.departmentId });
+      io.to(`ticket_${ticket.id}`).emit('prediction_updated', { ticketId: ticket.id });
 
       // Trigger socket analytics update
       const { emitAnalyticsUpdate } = require('./analytics.controller');
@@ -413,6 +415,8 @@ const cancelTicket = async (req, res) => {
       io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
       // Emit queue_updated to the department room
       io.to(`department_${departmentId}`).emit('queue_updated', { departmentId });
+      io.to(`department_${departmentId}`).emit('prediction_updated', { departmentId });
+      io.to(`ticket_${ticket.id}`).emit('prediction_updated', { ticketId: ticket.id });
 
       // Trigger socket analytics update
       const { emitAnalyticsUpdate } = require('./analytics.controller');
@@ -603,6 +607,9 @@ const rescheduleTicket = async (req, res) => {
       io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
       io.to(`department_${oldDepartmentId}`).emit('queue_updated', { departmentId: oldDepartmentId });
       io.to(`department_${newDepartmentId}`).emit('queue_updated', { departmentId: newDepartmentId });
+      io.to(`department_${oldDepartmentId}`).emit('prediction_updated', { departmentId: oldDepartmentId });
+      io.to(`department_${newDepartmentId}`).emit('prediction_updated', { departmentId: newDepartmentId });
+      io.to(`ticket_${ticket.id}`).emit('prediction_updated', { ticketId: ticket.id });
 
       // Trigger analytics update
       const { emitAnalyticsUpdate } = require('./analytics.controller');
@@ -718,6 +725,8 @@ const startServingTicket = async (req, res) => {
       io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
       io.to(`department_${ticket.departmentId}`).emit('queue_updated', { departmentId: ticket.departmentId });
       io.emit('serving_started', ticket);
+      io.to(`department_${ticket.departmentId}`).emit('prediction_updated', { departmentId: ticket.departmentId });
+      io.to(`ticket_${ticket.id}`).emit('prediction_updated', { ticketId: ticket.id });
 
       // Trigger socket analytics update
       const { emitAnalyticsUpdate } = require('./analytics.controller');
@@ -794,6 +803,8 @@ const completeTicket = async (req, res) => {
       io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
       io.to(`department_${ticket.departmentId}`).emit('queue_updated', { departmentId: ticket.departmentId });
       io.emit('visit_completed', ticket);
+      io.to(`department_${ticket.departmentId}`).emit('prediction_updated', { departmentId: ticket.departmentId });
+      io.to(`ticket_${ticket.id}`).emit('prediction_updated', { ticketId: ticket.id });
 
       // Trigger socket analytics update
       const { emitAnalyticsUpdate } = require('./analytics.controller');
@@ -896,6 +907,8 @@ const cancelTicketStaff = async (req, res) => {
       io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
       io.to(`department_${ticket.departmentId}`).emit('queue_updated', { departmentId: ticket.departmentId });
       io.emit('ticket_cancelled', ticket);
+      io.to(`department_${ticket.departmentId}`).emit('prediction_updated', { departmentId: ticket.departmentId });
+      io.to(`ticket_${ticket.id}`).emit('prediction_updated', { ticketId: ticket.id });
 
       // Trigger socket analytics update
       const { emitAnalyticsUpdate } = require('./analytics.controller');

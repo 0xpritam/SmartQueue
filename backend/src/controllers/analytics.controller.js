@@ -100,7 +100,82 @@ const getOverview = async (req, res) => {
 
     const avgWaitTime = validWaitCount > 0 ? Math.round(totalWaitMs / validWaitCount / 60000) : 0;
 
-    // 5. Ticket status distribution (all-time counts for pie chart)
+    // 5. Extended analytics dashboard metrics
+    const completedTickets = await Ticket.findAll({
+      where: {
+        status: 'completed',
+        completedAt: { [Op.ne]: null },
+        [Op.or]: [
+          { servingStartTime: { [Op.ne]: null } },
+          { calledAt: { [Op.ne]: null } }
+        ]
+      }
+    });
+
+    let avgConsultationTime = 0;
+    if (completedTickets.length > 0) {
+      let totalMs = 0;
+      completedTickets.forEach(t => {
+        const start = t.servingStartTime || t.calledAt;
+        const end = t.completedAt;
+        totalMs += (new Date(end) - new Date(start));
+      });
+      avgConsultationTime = Math.round(totalMs / completedTickets.length / 60000);
+    }
+
+    const depts = await Department.findAll();
+    const deptConsultationTimes = [];
+    for (const dept of depts) {
+      const deptCompleted = completedTickets.filter(t => t.departmentId === dept.id);
+      if (deptCompleted.length > 0) {
+        let totalMs = 0;
+        deptCompleted.forEach(t => {
+          const start = t.servingStartTime || t.calledAt;
+          const end = t.completedAt;
+          totalMs += (new Date(end) - new Date(start));
+        });
+        const avg = Math.round(totalMs / deptCompleted.length / 60000);
+        deptConsultationTimes.push({ name: dept.name, avgTime: avg });
+      }
+    }
+
+    let fastestDepartment = 'N/A';
+    let slowestDepartment = 'N/A';
+    if (deptConsultationTimes.length > 0) {
+      deptConsultationTimes.sort((a, b) => a.avgTime - b.avgTime);
+      fastestDepartment = `${deptConsultationTimes[0].name} (${deptConsultationTimes[0].avgTime}m)`;
+      slowestDepartment = `${deptConsultationTimes[deptConsultationTimes.length - 1].name} (${deptConsultationTimes[deptConsultationTimes.length - 1].avgTime}m)`;
+    }
+
+    const allServedTickets = await Ticket.findAll({
+      where: {
+        status: ['serving', 'completed'],
+      }
+    });
+    const allNotifications = await Notification.findAll({
+      where: {
+        type: 'serving',
+      }
+    });
+    const allNotifMap = new Map(allNotifications.map(n => [n.ticketId, n.createdAt]));
+    let totalAllWaitMs = 0;
+    let validAllWaitCount = 0;
+    allServedTickets.forEach(t => {
+      const servedAt = allNotifMap.get(t.id);
+      let waitMs = null;
+      if (servedAt) {
+        waitMs = new Date(servedAt) - new Date(t.createdAt);
+      } else {
+        waitMs = new Date(t.updatedAt) - new Date(t.createdAt);
+      }
+      if (waitMs !== null && waitMs >= 0) {
+        totalAllWaitMs += waitMs;
+        validAllWaitCount++;
+      }
+    });
+    const avgDailyWaitTime = validAllWaitCount > 0 ? Math.round(totalAllWaitMs / validAllWaitCount / 60000) : 0;
+
+    // 6. Ticket status distribution (all-time counts for pie chart)
     const statusDistribution = {
       waiting: await Ticket.count({ where: { status: 'waiting' } }),
       serving: await Ticket.count({ where: { status: 'serving' } }),
@@ -116,6 +191,10 @@ const getOverview = async (req, res) => {
         completedVisitsToday,
         avgWaitTime,
         statusDistribution,
+        avgConsultationTime,
+        fastestDepartment,
+        slowestDepartment,
+        avgDailyWaitTime
       },
     });
   } catch (error) {
@@ -381,6 +460,93 @@ const calculateDashboardData = async () => {
     completedToday: completedTodayMap.get(d.id) || 0
   }));
 
+  // 4. Extended dashboard metrics
+  let avgConsultationTime = 0;
+  let fastestDepartment = 'N/A';
+  let slowestDepartment = 'N/A';
+  let avgDailyWaitTime = 0;
+
+  try {
+    const completedTickets = await Ticket.findAll({
+      where: {
+        status: 'completed',
+        completedAt: { [Op.ne]: null },
+        [Op.or]: [
+          { servingStartTime: { [Op.ne]: null } },
+          { calledAt: { [Op.ne]: null } }
+        ]
+      }
+    });
+
+    if (completedTickets.length > 0) {
+      let totalMs = 0;
+      completedTickets.forEach(t => {
+        const start = t.servingStartTime || t.calledAt;
+        const end = t.completedAt;
+        if (start && end) {
+          totalMs += (new Date(end) - new Date(start));
+        }
+      });
+      avgConsultationTime = Math.round(totalMs / completedTickets.length / 60000);
+    }
+
+    const deptConsultationTimes = [];
+    for (const dept of depts) {
+      const deptCompleted = completedTickets.filter(t => t.departmentId === dept.id);
+      if (deptCompleted.length > 0) {
+        let totalMs = 0;
+        deptCompleted.forEach(t => {
+          const start = t.servingStartTime || t.calledAt;
+          const end = t.completedAt;
+          if (start && end) {
+            totalMs += (new Date(end) - new Date(start));
+          }
+        });
+        const avg = Math.round(totalMs / deptCompleted.length / 60000);
+        deptConsultationTimes.push({ name: dept.name, avgTime: avg });
+      }
+    }
+
+    if (deptConsultationTimes.length > 0) {
+      deptConsultationTimes.sort((a, b) => a.avgTime - b.avgTime);
+      fastestDepartment = `${deptConsultationTimes[0].name} (${deptConsultationTimes[0].avgTime}m)`;
+      slowestDepartment = `${deptConsultationTimes[deptConsultationTimes.length - 1].name} (${deptConsultationTimes[deptConsultationTimes.length - 1].avgTime}m)`;
+    }
+
+    const allServedTickets = await Ticket.findAll({
+      where: {
+        status: ['serving', 'completed'],
+      }
+    });
+
+    if (typeof Notification !== 'undefined' && Notification) {
+      const allNotifications = await Notification.findAll({
+        where: {
+          type: 'serving',
+        }
+      });
+      const allNotifMap = new Map(allNotifications.map(n => [n.ticketId, n.createdAt]));
+      let totalAllWaitMs = 0;
+      let validAllWaitCount = 0;
+      allServedTickets.forEach(t => {
+        const servedAt = allNotifMap.get(t.id);
+        let waitMs = null;
+        if (servedAt) {
+          waitMs = new Date(servedAt) - new Date(t.createdAt);
+        } else {
+          waitMs = new Date(t.updatedAt) - new Date(t.createdAt);
+        }
+        if (waitMs !== null && waitMs >= 0) {
+          totalAllWaitMs += waitMs;
+          validAllWaitCount++;
+        }
+      });
+      avgDailyWaitTime = validAllWaitCount > 0 ? Math.round(totalAllWaitMs / validAllWaitCount / 60000) : 0;
+    }
+  } catch (err) {
+    console.error('Extended metrics calculation error:', err);
+  }
+
   return {
     totalTicketsToday,
     waiting,
@@ -388,7 +554,11 @@ const calculateDashboardData = async () => {
     completed,
     cancelled,
     averageWaitingTime,
-    departments
+    departments,
+    avgConsultationTime,
+    fastestDepartment,
+    slowestDepartment,
+    avgDailyWaitTime
   };
 };
 

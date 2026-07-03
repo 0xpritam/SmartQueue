@@ -55,3 +55,9 @@ export const rescheduleTicket = async (ticketId, departmentId) => {
   return res.data;
 };
 
+// Fetch prediction details for a ticket
+export const getPrediction = async (ticketId) => {
+  const res = await api.get(`/predictions/${ticketId}`);
+  return res.data;
+};
+

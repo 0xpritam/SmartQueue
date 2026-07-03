@@ -99,6 +99,8 @@ const callNextPatient = async (req, res) => {
     if (io) {
       io.to(`ticket_${ticketToServe.id}`).emit('ticket_updated', ticketToServe);
       io.to(`department_${departmentId}`).emit('queue_updated', { departmentId });
+      io.to(`department_${departmentId}`).emit('prediction_updated', { departmentId });
+      io.to(`ticket_${ticketToServe.id}`).emit('prediction_updated', { ticketId: ticketToServe.id });
 
       // Trigger socket analytics update
       const { emitAnalyticsUpdate } = require('./analytics.controller');
