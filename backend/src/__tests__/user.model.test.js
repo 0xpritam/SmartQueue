@@ -111,9 +111,9 @@ describe('User model definition', () => {
       expect(attr.type instanceof DataTypes.ENUM).toBe(true);
     });
 
-    it('allows only "user" and "admin"', () => {
+    it('allows only "user", "admin", and "staff"', () => {
       const values = User.rawAttributes.role.type.values;
-      expect(values).toEqual(['user', 'admin']);
+      expect(values).toEqual(['user', 'admin', 'staff']);
     });
 
     it('defaults to "user"', () => {

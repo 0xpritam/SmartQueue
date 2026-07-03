@@ -10,7 +10,10 @@ const {
   getTicketQR,
   cancelTicket,
   getAppointmentHistory,
-  rescheduleTicket
+  rescheduleTicket,
+  startServingTicket,
+  completeTicket,
+  cancelTicketStaff
 } = require('../controllers/ticket.controller');
 
 
@@ -42,6 +45,15 @@ router.patch('/:id/cancel', authenticate, cancelTicket);
 
 // PATCH /api/tickets/:id/reschedule - Reschedule ticket (authenticated)
 router.patch('/:id/reschedule', authenticate, rescheduleTicket);
+
+// POST /api/tickets/:id/start-serving - Start serving patient (authenticated, staff/admin only)
+router.post('/:id/start-serving', authenticate, startServingTicket);
+
+// POST /api/tickets/:id/complete - Complete ticket visit (authenticated, staff/admin only)
+router.post('/:id/complete', authenticate, completeTicket);
+
+// POST /api/tickets/:id/cancel - Cancel ticket visit (authenticated, staff/admin only)
+router.post('/:id/cancel', authenticate, cancelTicketStaff);
 
 module.exports = router;
 

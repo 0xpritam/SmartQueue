@@ -4,7 +4,7 @@ const { Op } = require('sequelize');
 // Helper to check if user has admin/staff role
 const checkStaffRole = async (userId) => {
   const user = await User.findByPk(userId);
-  return user && user.role === 'admin';
+  return user && (user.role === 'admin' || user.role === 'staff');
 };
 
 // ==========================================

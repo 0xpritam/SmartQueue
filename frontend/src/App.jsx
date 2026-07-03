@@ -13,6 +13,8 @@ import AIAssistant from './pages/AIAssistant.jsx'
 import ProtectedRoute from './routes/ProtectedRoute.jsx'
 import Notifications from './pages/Notifications.jsx'
 import AnalyticsPage from './pages/AnalyticsPage.jsx'
+import AdminPortal from './pages/AdminPortal.jsx'
+import StaffOperations from './pages/StaffOperations.jsx'
 
 function App() {
   return (
@@ -24,7 +26,7 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute allowedRoles={['admin']} fallbackPath="/staff-login">
+            <ProtectedRoute allowedRoles={['staff', 'admin']} fallbackPath="/staff-login">
               <StaffDashboard />
             </ProtectedRoute>
           }
@@ -32,8 +34,24 @@ function App() {
         <Route
           path="/analytics"
           element={
-            <ProtectedRoute allowedRoles={['admin']} fallbackPath="/staff-login">
+            <ProtectedRoute allowedRoles={['staff', 'admin']} fallbackPath="/staff-login">
               <AnalyticsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRoles={['admin']} fallbackPath="/staff-login">
+              <AdminPortal />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-operations"
+          element={
+            <ProtectedRoute allowedRoles={['staff', 'admin']} fallbackPath="/staff-login">
+              <StaffOperations />
             </ProtectedRoute>
           }
         />
@@ -48,7 +66,7 @@ function App() {
         <Route
           path="/notifications"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'user']}>
+            <ProtectedRoute allowedRoles={['admin', 'staff', 'user']}>
               <Notifications />
             </ProtectedRoute>
           }

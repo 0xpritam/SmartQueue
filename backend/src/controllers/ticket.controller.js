@@ -128,6 +128,18 @@ const getAllTickets = async (req, res) => {
 
     const tickets = await Ticket.findAll({
       where,
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'phone', 'age'],
+        },
+        {
+          model: Department,
+          as: 'department',
+          attributes: ['id', 'name'],
+        },
+      ],
       order: [['createdAt', 'DESC']],
     });
 
@@ -274,7 +286,7 @@ const getTicketQR = async (req, res) => {
 
     // 4. Check access permissions
     const isOwner = ticket.userId === req.user.id;
-    const isAdmin = user.role === 'admin';
+    const isAdmin = user.role === 'admin' || user.role === 'staff';
     if (!isOwner && !isAdmin) {
       return res.status(403).json({
         success: false,
@@ -349,7 +361,7 @@ const cancelTicket = async (req, res) => {
 
     // 4. Check access permissions
     const isOwner = ticket.userId === req.user.id;
-    const isAdmin = user.role === 'admin';
+    const isAdmin = user.role === 'admin' || user.role === 'staff';
     if (!isOwner && !isAdmin) {
       return res.status(403).json({
         success: false,
@@ -623,6 +635,298 @@ const rescheduleTicket = async (req, res) => {
 };
 
 // ==========================================
+// START SERVING TICKET (for staff operations)
+// ==========================================
+const startServingTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByPk(req.user.id);
+    if (!user || (user.role !== 'admin' && user.role !== 'staff')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Staff or admins only.',
+      });
+    }
+
+    const ticket = await Ticket.findByPk(id);
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ticket not found',
+      });
+    }
+
+    // Permission lock check
+    if (user.role === 'staff' && ticket.departmentId !== user.departmentId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only manage tickets for your assigned department.',
+      });
+    }
+
+    if (ticket.status !== 'waiting') {
+      return res.status(400).json({
+        success: false,
+        message: 'Ticket status must be waiting.',
+      });
+    }
+
+    // Check if another ticket is already serving in this department
+    const servingTicketExists = await Ticket.findOne({
+      where: { departmentId: ticket.departmentId, status: 'serving' }
+    });
+
+    if (servingTicketExists) {
+      return res.status(409).json({
+        success: false,
+        message: 'Another patient is currently being served in this department.',
+      });
+    }
+
+    // Fetch waiting tickets before status change to calculate queue reordering
+    const ticketsBefore = await Ticket.findAll({
+      where: { departmentId: ticket.departmentId, status: 'waiting' },
+      order: [['createdAt', 'ASC']],
+    });
+    ticketsBefore.sort((a, b) => {
+      const timeA = a.rescheduledAt || a.createdAt;
+      const timeB = b.rescheduledAt || b.createdAt;
+      return new Date(timeA) - new Date(timeB);
+    });
+
+    // Update status, calledAt and servingStartTime
+    ticket.status = 'serving';
+    ticket.calledAt = new Date();
+    ticket.servingStartTime = new Date();
+    await ticket.save();
+
+    // Fetch waiting tickets after status change
+    const ticketsAfter = await Ticket.findAll({
+      where: { departmentId: ticket.departmentId, status: 'waiting' },
+      order: [['createdAt', 'ASC']],
+    });
+    ticketsAfter.sort((a, b) => {
+      const timeA = a.rescheduledAt || a.createdAt;
+      const timeB = b.rescheduledAt || b.createdAt;
+      return new Date(timeA) - new Date(timeB);
+    });
+
+    // Socket.io broadcasts & triggers
+    const io = req.app?.get?.('io');
+    if (io) {
+      io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
+      io.to(`department_${ticket.departmentId}`).emit('queue_updated', { departmentId: ticket.departmentId });
+      io.emit('serving_started', ticket);
+
+      // Trigger socket analytics update
+      const { emitAnalyticsUpdate } = require('./analytics.controller');
+      emitAnalyticsUpdate(io);
+
+      // Recalculate remaining waiting queue positions and notify affected users
+      handleQueuePositionChanges(io, ticket.departmentId, ticketsBefore, ticketsAfter);
+
+      // Send the "Now Serving" notification
+      sendServingNotification(io, ticket).catch((err) =>
+        console.error('[NOTIFICATION ERROR] Serving notification failed:', err)
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Ticket status updated to serving.',
+      ticket,
+    });
+  } catch (error) {
+    console.error('Start serving ticket error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+};
+
+// ==========================================
+// COMPLETE VISIT (for staff operations)
+// ==========================================
+const completeTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByPk(req.user.id);
+    if (!user || (user.role !== 'admin' && user.role !== 'staff')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Staff or admins only.',
+      });
+    }
+
+    const ticket = await Ticket.findByPk(id);
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ticket not found',
+      });
+    }
+
+    // Permission lock check
+    if (user.role === 'staff' && ticket.departmentId !== user.departmentId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only manage tickets for your assigned department.',
+      });
+    }
+
+    if (ticket.status !== 'serving') {
+      return res.status(400).json({
+        success: false,
+        message: 'Ticket must currently be serving.',
+      });
+    }
+
+    ticket.status = 'completed';
+    ticket.completedAt = new Date();
+    await ticket.save();
+
+    // Socket.io broadcasts & triggers
+    const io = req.app?.get?.('io');
+    if (io) {
+      io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
+      io.to(`department_${ticket.departmentId}`).emit('queue_updated', { departmentId: ticket.departmentId });
+      io.emit('visit_completed', ticket);
+
+      // Trigger socket analytics update
+      const { emitAnalyticsUpdate } = require('./analytics.controller');
+      emitAnalyticsUpdate(io);
+
+      // Send completion notification & email
+      sendCompletionNotification(io, ticket).catch((err) =>
+        console.error('[NOTIFICATION ERROR] Completion notification failed:', err)
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Ticket completed successfully.',
+      ticket,
+    });
+  } catch (error) {
+    console.error('Complete ticket error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+};
+
+// ==========================================
+// CANCEL VISIT (for staff operations)
+// ==========================================
+const cancelTicketStaff = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByPk(req.user.id);
+    if (!user || (user.role !== 'admin' && user.role !== 'staff')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Staff or admins only.',
+      });
+    }
+
+    const ticket = await Ticket.findByPk(id);
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ticket not found',
+      });
+    }
+
+    // Permission lock check
+    if (user.role === 'staff' && ticket.departmentId !== user.departmentId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only manage tickets for your assigned department.',
+      });
+    }
+
+    if (ticket.status !== 'waiting' && ticket.status !== 'serving') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only waiting or serving tickets can be cancelled.',
+      });
+    }
+
+    const oldStatus = ticket.status;
+
+    // Fetch waiting tickets before status change to calculate queue reordering if it was waiting
+    let ticketsBefore = [];
+    if (oldStatus === 'waiting') {
+      ticketsBefore = await Ticket.findAll({
+        where: { departmentId: ticket.departmentId, status: 'waiting' },
+        order: [['createdAt', 'ASC']],
+      });
+      ticketsBefore.sort((a, b) => {
+        const timeA = a.rescheduledAt || a.createdAt;
+        const timeB = b.rescheduledAt || b.createdAt;
+        return new Date(timeA) - new Date(timeB);
+      });
+    }
+
+    ticket.status = 'cancelled';
+    await ticket.save();
+
+    // Fetch waiting tickets after status change if it was waiting
+    let ticketsAfter = [];
+    if (oldStatus === 'waiting') {
+      ticketsAfter = await Ticket.findAll({
+        where: { departmentId: ticket.departmentId, status: 'waiting' },
+        order: [['createdAt', 'ASC']],
+      });
+      ticketsAfter.sort((a, b) => {
+        const timeA = a.rescheduledAt || a.createdAt;
+        const timeB = b.rescheduledAt || b.createdAt;
+        return new Date(timeA) - new Date(timeB);
+      });
+    }
+
+    // Socket.io broadcasts & triggers
+    const io = req.app?.get?.('io');
+    if (io) {
+      io.to(`ticket_${ticket.id}`).emit('ticket_updated', ticket);
+      io.to(`department_${ticket.departmentId}`).emit('queue_updated', { departmentId: ticket.departmentId });
+      io.emit('ticket_cancelled', ticket);
+
+      // Trigger socket analytics update
+      const { emitAnalyticsUpdate } = require('./analytics.controller');
+      emitAnalyticsUpdate(io);
+
+      // Recalculate remaining waiting queue positions and notify affected users if it was waiting
+      if (oldStatus === 'waiting') {
+        handleQueuePositionChanges(io, ticket.departmentId, ticketsBefore, ticketsAfter);
+      }
+
+      // Send cancellation notification & email
+      sendCancellationNotification(io, ticket).catch((err) =>
+        console.error('[NOTIFICATION ERROR] Cancellation notification failed:', err)
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Ticket cancelled successfully.',
+      ticket,
+    });
+  } catch (error) {
+    console.error('Cancel staff ticket error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+};
+
+// ==========================================
 // EXPORTS
 // ==========================================
 module.exports = {
@@ -635,5 +939,8 @@ module.exports = {
   cancelTicket,
   getAppointmentHistory,
   rescheduleTicket,
+  startServingTicket,
+  completeTicket,
+  cancelTicketStaff,
 };
 

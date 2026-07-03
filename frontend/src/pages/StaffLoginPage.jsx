@@ -15,6 +15,8 @@ const StaffLoginPage = () => {
   useEffect(() => {
     if (token && currentUser && currentUser.role) {
       if (currentUser.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else if (currentUser.role === 'staff') {
         navigate('/dashboard', { replace: true });
       }
     }
@@ -29,7 +31,11 @@ const StaffLoginPage = () => {
       const res = await adminLogin(email, password);
 
       if (res && res.success) {
-        navigate("/dashboard");
+        if (res.user.role === 'admin') {
+          navigate("/admin");
+        } else {
+          navigate("/dashboard");
+        }
       } else {
         setError(res.message || "Login failed");
       }

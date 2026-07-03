@@ -101,6 +101,14 @@ const login = async (req, res) => {
       });
     }
 
+    // Verify user is active
+    if (user.status === 'inactive') {
+      return res.status(403).json({
+        success: false,
+        message: 'Account has been deactivated.'
+      });
+    }
+
     // 4. Generate JWT token
     const token = jwt.sign(
       { id: user.id, email: user.email },
@@ -171,11 +179,19 @@ const adminLogin = async (req, res) => {
       });
     }
 
-    // 4. Verify user.role === 'admin'
-    if (user.role !== 'admin') {
+    // 4. Verify user.role === 'admin' or 'staff'
+    if (user.role !== 'admin' && user.role !== 'staff') {
       return res.status(403).json({
         success: false,
         message: 'Staff access only.'
+      });
+    }
+
+    // Verify user is active
+    if (user.status === 'inactive') {
+      return res.status(403).json({
+        success: false,
+        message: 'Account has been deactivated.'
       });
     }
 

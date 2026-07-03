@@ -62,8 +62,21 @@ module.exports = (sequelize) => {
       },
 
       role: {
-        type: DataTypes.ENUM('user', 'admin'),
+        type: DataTypes.ENUM('user', 'admin', 'staff'),
         defaultValue: 'user',
+      },
+
+      departmentId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: { model: 'departments', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
+      },
+
+      status: {
+        type: DataTypes.ENUM('active', 'inactive'),
+        defaultValue: 'active',
       },
     },
     {

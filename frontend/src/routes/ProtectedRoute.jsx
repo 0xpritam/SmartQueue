@@ -8,9 +8,13 @@ const ProtectedRoute = ({ children, allowedRoles, fallbackPath = "/login" }) => 
   if (!token) return <Navigate to={fallbackPath} replace />;
   
   if (allowedRoles && currentUser && !allowedRoles.includes(currentUser.role)) {
-    return currentUser.role === 'admin'
-      ? <Navigate to="/dashboard" replace />
-      : <Navigate to="/patient-dashboard" replace />;
+    if (currentUser.role === 'admin') {
+      return <Navigate to="/admin" replace />;
+    } else if (currentUser.role === 'staff') {
+      return <Navigate to="/dashboard" replace />;
+    } else {
+      return <Navigate to="/patient-dashboard" replace />;
+    }
   }
   
   return children;

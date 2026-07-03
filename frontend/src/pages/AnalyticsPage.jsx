@@ -41,7 +41,7 @@ const AnalyticsPage = () => {
         setLoading(true);
         // Verify role with backend profile check
         const profileRes = await api.get('/users/profile');
-        if (!profileRes.data || !profileRes.data.success || profileRes.data.user.role !== 'admin') {
+        if (!profileRes.data || !profileRes.data.success || (profileRes.data.user.role !== 'admin' && profileRes.data.user.role !== 'staff')) {
           // Non-admin users redirected
           navigate('/patient-dashboard');
           return;
@@ -162,6 +162,16 @@ const AnalyticsPage = () => {
                  'Offline (Polling)'}
               </span>
             </div>
+            <button 
+              onClick={() => navigate('/staff-operations')}
+              className="bg-teal-600 hover:bg-teal-700 border border-teal-500 text-white text-xs font-bold py-1.5 px-3 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 shadow"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <span>Staff Operations</span>
+            </button>
+
             <button 
               onClick={() => navigate('/dashboard')}
               className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold py-1.5 px-3 rounded-md transition-colors cursor-pointer flex items-center gap-1.5"

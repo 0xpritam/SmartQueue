@@ -55,6 +55,16 @@ module.exports = (sequelize) => {
         type: DataTypes.DATE,
         allowNull: true,
       },
+
+      servingStartTime: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+
+      completedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
     },
     {
       sequelize,

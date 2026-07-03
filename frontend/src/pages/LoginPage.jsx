@@ -38,7 +38,7 @@ const LoginPage = () => {
     }
   }
 
-  if (token && currentUser && currentUser.role === 'admin') {
+  if (token && currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">

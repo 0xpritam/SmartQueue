@@ -15,6 +15,9 @@ User.hasMany(Ticket, { foreignKey: 'userId', as: 'tickets' });
 Notification.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(Notification, { foreignKey: 'userId', as: 'notifications' });
 
+User.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+Department.hasMany(User, { foreignKey: 'departmentId', as: 'staff' });
+
 module.exports = {
   sequelize,
   User,
