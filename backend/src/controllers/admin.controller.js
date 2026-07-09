@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const { Op } = require('sequelize');
 const { sequelize, User, Department, Ticket, Notification } = require('../models');
 const { emitAnalyticsUpdate } = require('./analytics.controller');
+const { logAudit } = require('../utils/auditLogger');
 
 // ==========================================
 // ADMIN DASHBOARD API
@@ -145,6 +146,20 @@ const createDepartment = async (req, res) => {
       emitAnalyticsUpdate(io);
     }
 
+    logAudit({
+      userId: req.user.id,
+      role: 'admin',
+      action: 'CREATE_DEPARTMENT',
+      entityType: 'Department',
+      entityId: department.id,
+      description: `Department "${department.name}" created`,
+      ipAddress: req.ip,
+      metadata: {
+        name: department.name,
+        description: department.description
+      }
+    });
+
     return res.status(201).json({
       success: true,
       message: 'Department created successfully',
@@ -239,6 +254,21 @@ const updateDepartment = async (req, res) => {
       emitAnalyticsUpdate(io);
     }
 
+    logAudit({
+      userId: req.user.id,
+      role: 'admin',
+      action: 'UPDATE_DEPARTMENT',
+      entityType: 'Department',
+      entityId: department.id,
+      description: `Department "${department.name}" updated`,
+      ipAddress: req.ip,
+      metadata: {
+        name: department.name,
+        description: department.description,
+        status: department.status
+      }
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Department updated successfully',
@@ -302,6 +332,20 @@ const deleteDepartment = async (req, res) => {
       io.emit('department_disabled', department);
       emitAnalyticsUpdate(io);
     }
+
+    logAudit({
+      userId: req.user.id,
+      role: 'admin',
+      action: 'DELETE_DEPARTMENT',
+      entityType: 'Department',
+      entityId: department.id,
+      description: `Department "${department.name}" deactivated`,
+      ipAddress: req.ip,
+      metadata: {
+        name: department.name,
+        status: department.status
+      }
+    });
 
     return res.status(200).json({
       success: true,
@@ -449,6 +493,21 @@ const createStaff = async (req, res) => {
       emitAnalyticsUpdate(io);
     }
 
+    logAudit({
+      userId: req.user.id,
+      role: 'admin',
+      action: 'CREATE_STAFF',
+      entityType: 'User',
+      entityId: staffUser.id,
+      description: `Staff account for "${staffUser.name}" (${staffUser.email}) created`,
+      ipAddress: req.ip,
+      metadata: {
+        name: staffUser.name,
+        email: staffUser.email,
+        departmentId: staffUser.departmentId
+      }
+    });
+
     return res.status(201).json({
       success: true,
       message: 'Staff account created successfully',
@@ -586,6 +645,22 @@ const updateStaff = async (req, res) => {
       emitAnalyticsUpdate(io);
     }
 
+    logAudit({
+      userId: req.user.id,
+      role: 'admin',
+      action: 'UPDATE_STAFF',
+      entityType: 'User',
+      entityId: staffUser.id,
+      description: `Staff account for "${staffUser.name}" (${staffUser.email}) updated`,
+      ipAddress: req.ip,
+      metadata: {
+        name: staffUser.name,
+        email: staffUser.email,
+        departmentId: staffUser.departmentId,
+        status: staffUser.status
+      }
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Staff account updated successfully',
@@ -634,6 +709,21 @@ const deleteStaff = async (req, res) => {
       io.emit('staff_updated', updatedStaff);
       emitAnalyticsUpdate(io);
     }
+
+    logAudit({
+      userId: req.user.id,
+      role: 'admin',
+      action: 'DEACTIVATE_STAFF',
+      entityType: 'User',
+      entityId: staffUser.id,
+      description: `Staff account for "${staffUser.name}" (${staffUser.email}) deactivated`,
+      ipAddress: req.ip,
+      metadata: {
+        name: staffUser.name,
+        email: staffUser.email,
+        status: staffUser.status
+      }
+    });
 
     return res.status(200).json({
       success: true,

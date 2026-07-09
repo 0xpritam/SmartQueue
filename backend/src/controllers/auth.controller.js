@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
+const { logAudit } = require('../utils/auditLogger');
 
 // ==========================================
 // REGISTER CONTROLLER
@@ -122,6 +123,17 @@ const login = async (req, res) => {
   "ROLE:",
   user.role
 );
+    logAudit({
+      userId: user.id,
+      role: user.role,
+      action: 'LOGIN',
+      entityType: 'User',
+      entityId: user.id,
+      description: `User ${user.email} logged in successfully`,
+      ipAddress: req.ip,
+      metadata: { email: user.email }
+    });
+
     // 5. Return token and user info
     return res.status(200).json({
       success: true,
@@ -208,6 +220,17 @@ const adminLogin = async (req, res) => {
       "ROLE:",
       user.role
     );
+
+    logAudit({
+      userId: user.id,
+      role: user.role,
+      action: 'ADMIN_LOGIN',
+      entityType: 'User',
+      entityId: user.id,
+      description: `Admin/Staff ${user.email} logged in successfully`,
+      ipAddress: req.ip,
+      metadata: { email: user.email }
+    });
 
     // 6. Return token and user info
     return res.status(200).json({

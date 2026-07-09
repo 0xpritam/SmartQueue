@@ -1,6 +1,7 @@
 const { Ticket, Department, User } = require('../models');
 const QRCode = require('qrcode');
 const { v4: uuidv4 } = require('uuid');
+const { logAudit } = require('../utils/auditLogger');
 const { createNotification, handleQueuePositionChanges, getCleanTicketNumber, sendBookingNotification, sendCancellationNotification, sendCompletionNotification, sendServingNotification } = require('../utils/notification');
 
 // ==========================================
@@ -48,6 +49,26 @@ const generateTicket = async (req, res) => {
       // Asynchronously trigger booking notification
       sendBookingNotification(io, ticket, req.user.id).catch((err) => console.error('[NOTIFICATION ERROR] Booked notification failed:', err));
     }
+
+    // Calculate queue position
+    const queuePosition = (Ticket.count && typeof Ticket.count === 'function')
+      ? await Ticket.count({ where: { departmentId, status: 'waiting' } })
+      : null;
+
+    logAudit({
+      userId: req.user.id,
+      role: req.user.role,
+      action: 'BOOK_TICKET',
+      entityType: 'Ticket',
+      entityId: ticket.id,
+      description: `Ticket ${ticket.ticketNumber} booked successfully`,
+      ipAddress: req.ip,
+      metadata: {
+        ticketNumber: ticket.ticketNumber,
+        department: department.name,
+        queuePosition
+      }
+    });
 
     return res.status(201).json({
       success: true,
@@ -429,6 +450,22 @@ const cancelTicket = async (req, res) => {
       sendCancellationNotification(io, ticket).catch((err) => console.error('[NOTIFICATION ERROR] Cancellation notification failed:', err));
     }
 
+    const queuePosition = ticketsBefore.findIndex(t => t.id === ticket.id) + 1;
+
+    logAudit({
+      userId: req.user.id,
+      role: user.role,
+      action: 'CANCEL_TICKET',
+      entityType: 'Ticket',
+      entityId: ticket.id,
+      description: `Ticket ${ticket.ticketNumber} cancelled`,
+      ipAddress: req.ip,
+      metadata: {
+        ticketNumber: ticket.ticketNumber,
+        queuePosition
+      }
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Ticket cancelled successfully',
@@ -626,6 +663,26 @@ const rescheduleTicket = async (req, res) => {
       });
     }
 
+    const oldDept = await Department.findByPk(oldDepartmentId);
+    const oldDepartment = oldDept ? oldDept.name : oldDepartmentId;
+    const newDepartment = newDept ? newDept.name : newDepartmentId;
+
+    logAudit({
+      userId: req.user.id,
+      role: req.user.role,
+      action: 'RESCHEDULE_TICKET',
+      entityType: 'Ticket',
+      entityId: ticket.id,
+      description: `Ticket ${ticket.ticketNumber} rescheduled`,
+      ipAddress: req.ip,
+      metadata: {
+        oldDepartment,
+        newDepartment,
+        oldQueuePosition,
+        newQueuePosition
+      }
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Ticket rescheduled successfully',
@@ -741,6 +798,22 @@ const startServingTicket = async (req, res) => {
       );
     }
 
+    const queuePosition = ticketsBefore.findIndex(t => t.id === ticket.id) + 1;
+
+    logAudit({
+      userId: req.user.id,
+      role: user.role,
+      action: 'START_SERVING',
+      entityType: 'Ticket',
+      entityId: ticket.id,
+      description: `Started serving ticket ${ticket.ticketNumber}`,
+      ipAddress: req.ip,
+      metadata: {
+        ticketNumber: ticket.ticketNumber,
+        queuePosition
+      }
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Ticket status updated to serving.',
@@ -815,6 +888,22 @@ const completeTicket = async (req, res) => {
         console.error('[NOTIFICATION ERROR] Completion notification failed:', err)
       );
     }
+
+    const durationMs = new Date(ticket.completedAt) - new Date(ticket.servingStartTime);
+
+    logAudit({
+      userId: req.user.id,
+      role: user.role,
+      action: 'COMPLETE_TICKET',
+      entityType: 'Ticket',
+      entityId: ticket.id,
+      description: `Completed ticket ${ticket.ticketNumber}`,
+      ipAddress: req.ip,
+      metadata: {
+        ticketNumber: ticket.ticketNumber,
+        durationMs
+      }
+    });
 
     return res.status(200).json({
       success: true,
@@ -924,6 +1013,22 @@ const cancelTicketStaff = async (req, res) => {
         console.error('[NOTIFICATION ERROR] Cancellation notification failed:', err)
       );
     }
+
+    const queuePosition = oldStatus === 'waiting' ? (ticketsBefore.findIndex(t => t.id === ticket.id) + 1) : null;
+
+    logAudit({
+      userId: req.user.id,
+      role: user.role,
+      action: 'CANCEL_TICKET',
+      entityType: 'Ticket',
+      entityId: ticket.id,
+      description: `Ticket ${ticket.ticketNumber} cancelled by staff/admin`,
+      ipAddress: req.ip,
+      metadata: {
+        ticketNumber: ticket.ticketNumber,
+        queuePosition
+      }
+    });
 
     return res.status(200).json({
       success: true,
