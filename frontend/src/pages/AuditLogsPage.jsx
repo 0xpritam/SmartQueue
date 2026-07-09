@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
-import { getAuditLogs } from '../api/auditLog.service';
+import { getAuditLogs, exportAuditLogsCSV, exportAuditLogsPDF } from '../api/auditLog.service';
 
 const AuditLogsPage = () => {
   const navigate = useNavigate();
@@ -17,6 +17,8 @@ const AuditLogsPage = () => {
   const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   // Filter States
   const [searchInput, setSearchInput] = useState('');
@@ -129,6 +131,70 @@ const AuditLogsPage = () => {
     return 'bg-slate-500/10 text-slate-300 border border-slate-700';
   };
 
+  const triggerDownload = (blob, extension) => {
+    const url = window.URL.createObjectURL(new Blob([blob]));
+    const now = new Date();
+    const formattedDate = now.toISOString().slice(0, 10) + '-' + now.toTimeString().slice(0, 5).replace(':', '');
+    const filename = `audit-logs-${formattedDate}.${extension}`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExportCSV = async () => {
+    setExporting(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const blob = await exportAuditLogsCSV({
+        search,
+        action,
+        role,
+        entityType,
+        from,
+        to,
+        sortBy,
+        sortOrder
+      });
+      triggerDownload(blob, 'csv');
+      setSuccess('Audit logs exported successfully as CSV.');
+    } catch (err) {
+      console.error('Export CSV error:', err);
+      setError('Failed to export CSV. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    setExporting(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const blob = await exportAuditLogsPDF({
+        search,
+        action,
+        role,
+        entityType,
+        from,
+        to,
+        sortBy,
+        sortOrder
+      });
+      triggerDownload(blob, 'pdf');
+      setSuccess('Audit logs exported successfully as PDF.');
+    } catch (err) {
+      console.error('Export PDF error:', err);
+      setError('Failed to export PDF. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Reset all filters
   const resetFilters = () => {
     setSearchInput('');
@@ -221,6 +287,22 @@ const AuditLogsPage = () => {
 
         {/* Content Pane */}
         <section className="flex-grow flex flex-col gap-6">
+          {/* Success Banner */}
+          {success && (
+            <div className="p-4 bg-emerald-950/60 border border-emerald-800 rounded-xl flex gap-3 text-xs text-emerald-300 animate-fadeIn">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0 text-emerald-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <div className="flex-grow font-semibold leading-normal">{success}</div>
+              <button
+                onClick={() => setSuccess(null)}
+                className="text-[10px] font-bold text-emerald-400 hover:text-white cursor-pointer transition-all"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
           {/* Error Banner */}
           {error && (
             <div className="p-4 bg-red-950/60 border border-red-800 rounded-xl flex gap-3 text-xs text-red-300 animate-fadeIn">
@@ -417,6 +499,53 @@ const AuditLogsPage = () => {
                   Reset All Filters
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Export Actions Section */}
+          <div className="flex items-center justify-between gap-4 flex-wrap bg-slate-800 border border-slate-700/60 p-4 rounded-2xl shadow-xl">
+            <div>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">Report Actions</h3>
+              <p className="text-[10px] text-slate-400 mt-0.5">Export matching logs based on applied search and filters.</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                disabled={exporting || loading}
+                onClick={handleExportCSV}
+                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer border ${
+                  exporting || loading
+                    ? 'border-slate-800 text-slate-500 bg-slate-800/40 cursor-not-allowed'
+                    : 'border-slate-700 hover:border-slate-500 bg-slate-900/40 hover:bg-slate-900 text-slate-300 hover:text-white'
+                }`}
+              >
+                {exporting ? (
+                  <span className="h-3 w-3 border-2 border-slate-500 border-t-slate-300 rounded-full animate-spin inline-block mr-1" />
+                ) : (
+                  <svg xmlns="http://www.w3.org/2500/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                )}
+                <span>Export CSV</span>
+              </button>
+
+              <button
+                disabled={exporting || loading}
+                onClick={handleExportPDF}
+                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer border ${
+                  exporting || loading
+                    ? 'border-slate-800 text-slate-500 bg-slate-800/40 cursor-not-allowed'
+                    : 'border-slate-700 hover:border-slate-500 bg-slate-900/40 hover:bg-slate-900 text-slate-300 hover:text-white'
+                }`}
+              >
+                {exporting ? (
+                  <span className="h-3 w-3 border-2 border-slate-500 border-t-slate-300 rounded-full animate-spin inline-block mr-1" />
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                )}
+                <span>Export PDF</span>
+              </button>
             </div>
           </div>
 

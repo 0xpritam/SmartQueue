@@ -14,6 +14,7 @@ const analyticsRoutes = require('./routes/analytics.routes');
 const adminRoutes = require('./routes/admin.routes');
 const predictionRoutes = require('./routes/prediction.routes');
 const auditLogRoutes = require('./routes/auditLog.routes');
+const auditLogExportRoutes = require('./routes/auditLogExport.routes');
 const helmet = require('helmet');
 
 // Global Middleware
@@ -42,6 +43,7 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/admin/audit-logs/export', auditLogExportRoutes);
 app.use('/api/admin/audit-logs', auditLogRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/predictions', predictionRoutes);
