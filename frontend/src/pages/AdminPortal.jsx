@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import api from '../api/auth';
 
 const AdminPortal = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout, currentUser } = useAuth();
   const { socket, connectionStatus } = useSocket();
 
   // Navigation Tabs
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'departments' | 'staff' | 'patients' | 'statistics'
+  const [activeTab, setActiveTab] = useState(location.state?.tab || 'dashboard'); // 'dashboard' | 'departments' | 'staff' | 'patients' | 'statistics'
 
   // Common UI State
   const [error, setError] = useState(null);
@@ -519,6 +520,16 @@ const AdminPortal = () => {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z" />
             </svg>
             <span>Statistics</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/admin/audit-logs')}
+            className="w-full text-left px-4 py-3 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all flex items-center gap-3 cursor-pointer bg-slate-800/50 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 shrink-0"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>Audit Logs</span>
           </button>
         </aside>
 

@@ -15,6 +15,7 @@ import Notifications from './pages/Notifications.jsx'
 import AnalyticsPage from './pages/AnalyticsPage.jsx'
 import AdminPortal from './pages/AdminPortal.jsx'
 import StaffOperations from './pages/StaffOperations.jsx'
+import AuditLogsPage from './pages/AuditLogsPage.jsx'
 
 function App() {
   return (
@@ -44,6 +45,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['admin']} fallbackPath="/staff-login">
               <AdminPortal />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/audit-logs"
+          element={
+            <ProtectedRoute allowedRoles={['admin']} fallbackPath="/staff-login">
+              <AuditLogsPage />
             </ProtectedRoute>
           }
         />
